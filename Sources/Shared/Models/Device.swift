@@ -27,7 +27,7 @@ public enum DeviceOnlineState: String, Codable, Sendable {
 }
 
 /// Model representing a discovered, paired, or known remote device.
-public struct Device: Identifiable, Codable, Sendable, Equatable {
+public struct Device: Identifiable, Codable, Sendable, Equatable, Hashable {
     public let id: String
     public var name: String
     public var platform: DevicePlatform

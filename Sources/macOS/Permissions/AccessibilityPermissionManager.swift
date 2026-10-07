@@ -9,13 +9,15 @@ public final class AccessibilityPermissionManager: @unchecked Sendable {
 
     /// Check if Accessibility permission is granted for remote input control.
     public var isAuthorized: Bool {
-        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false]
+        let key = "AXTrustedCheckOptionPrompt" as CFString
+        let options = [key: false] as CFDictionary
         return AXIsProcessTrustedWithOptions(options)
     }
 
     /// Request Accessibility permission prompt.
     public func requestPermission() {
-        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        let key = "AXTrustedCheckOptionPrompt" as CFString
+        let options = [key: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
     }
 

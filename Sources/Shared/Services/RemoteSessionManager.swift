@@ -26,44 +26,61 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, @unchecked
     private let maxReconnectAttempts = 5
     private let lock = NSLock()
 
+    private func withStateLock<T>(_ block: () -> T) -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return block()
+    }
+
     private init() {}
 
     /// Initiate a new remote desktop session with target device across network transport.
     public func startSession(with device: Device) async throws {
-        lock.lock()
-        activePeer = device
-        updateState(.connecting)
-        lock.unlock()
+        withStateLock {
+            activePeer = device
+            updateState(.connecting)
+        }
 
         let transport = LocalNetworkTransport()
         transport.delegate = self
 
-        lock.lock()
-        self.activeTransport = transport
-        lock.unlock()
+        withStateLock {
+            self.activeTransport = transport
+        }
 
         try await transport.connect(to: device)
 
-        // Host screen capture setup if host
+        #if os(macOS)
+        // Host screen capture setup if host on macOS
         Task {
             let captureEngine = ScreenCaptureEngine()
             captureEngine.delegate = self
             try? await captureEngine.startCapture()
         }
+        #elseif os(iOS)
+        // Host screen capture setup if host on iOS
+        Task { @MainActor in
+            iOSBroadcastManager.shared.onFrameCaptured = { [weak self] frameData, timestamp in
+                Task { [weak self] in
+                    try? await self?.activeTransport?.sendMediaFrame(frameData, timestamp: timestamp)
+                }
+            }
+        }
+        #endif
 
-        lock.lock()
-        reconnectAttempts = 0
-        updateState(.connected)
-        startHeartbeat()
-        lock.unlock()
+        withStateLock {
+            reconnectAttempts = 0
+            updateState(.connected)
+            startHeartbeat()
+        }
     }
 
     // MARK: - ConnectionTransportDelegate
 
     public func transport(_ transport: ConnectionTransport, didChangeState state: TransportConnectionState) {
-        lock.lock()
-        updateState(state)
-        lock.unlock()
+        withStateLock {
+            updateState(state)
+        }
     }
 
     public func transport(_ transport: ConnectionTransport, didReceiveMessage message: ProtocolMessage) {
@@ -75,10 +92,12 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, @unchecked
         case .pong:
             handlePong()
         case .inputEvent:
+            #if os(macOS)
             if let payload = message.payload, let event = try? JSONDecoder().decode(RemoteInputEvent.self, from: payload) {
                 // Execute received input on REMOTE HOST machine
                 RemoteInputEngine.shared.injectInputEvent(event)
             }
+            #endif
         case .clipboardSync:
             if let payload = message.payload, let clipboardPayload = try? JSONDecoder().decode(ClipboardPayload.self, from: payload) {
                 ClipboardSyncManager.shared.applyRemoteClipboard(clipboardPayload)
@@ -105,12 +124,11 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, @unchecked
 
     /// Handle incoming pong message and update latency calculation.
     public func handlePong() {
-        lock.lock()
-        defer { lock.unlock() }
-
-        if let pingTime = lastPingTime {
-            roundTripLatencyMs = Date().timeIntervalSince(pingTime) * 1000.0
-            delegate?.remoteSession(self, didUpdateMetrics: roundTripLatencyMs, bitrateMbps: 8.5)
+        withStateLock {
+            if let pingTime = lastPingTime {
+                roundTripLatencyMs = Date().timeIntervalSince(pingTime) * 1000.0
+                delegate?.remoteSession(self, didUpdateMetrics: roundTripLatencyMs, bitrateMbps: 8.5)
+            }
         }
     }
 
@@ -125,40 +143,37 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, @unchecked
 
     /// Trigger reconnection flow on network interruption.
     public func handleNetworkInterruption() {
-        lock.lock()
-        guard currentState == .connected else {
-            lock.unlock()
-            return
+        let (shouldReconnect, peerToReconnect) = withStateLock { () -> (Bool, Device?) in
+            guard currentState == .connected else {
+                return (false, nil)
+            }
+            updateState(.reconnecting)
+            reconnectAttempts += 1
+            if reconnectAttempts <= maxReconnectAttempts {
+                return (true, activePeer)
+            } else {
+                updateState(.failed)
+                return (false, nil)
+            }
         }
 
-        updateState(.reconnecting)
-        reconnectAttempts += 1
-        let currentAttempts = reconnectAttempts
-        lock.unlock()
-
-        if currentAttempts <= maxReconnectAttempts {
+        if shouldReconnect, let peer = peerToReconnect {
             Task {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
-                if let peer = self.activePeer {
-                    try? await self.startSession(with: peer)
-                }
+                try? await self.startSession(with: peer)
             }
-        } else {
-            lock.lock()
-            updateState(.failed)
-            lock.unlock()
         }
     }
 
     /// Terminate current active remote desktop session.
     public func endSession() {
-        lock.lock()
-        stopHeartbeat()
-        activeTransport?.disconnect()
-        activeTransport = nil
-        activePeer = nil
-        updateState(.disconnected)
-        lock.unlock()
+        withStateLock {
+            stopHeartbeat()
+            activeTransport?.disconnect()
+            activeTransport = nil
+            activePeer = nil
+            updateState(.disconnected)
+        }
     }
 
     private func updateState(_ state: TransportConnectionState) {
@@ -169,15 +184,19 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, @unchecked
     private func startHeartbeat() {
         stopHeartbeat()
         DispatchQueue.main.async { [weak self] in
-            self?.pingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-                self?.lock.lock()
-                self?.lastPingTime = Date()
-                let peer = self?.activePeer
-                self?.lock.unlock()
+            self?.pingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+                guard let self = self else { return }
+                let peer = self.withStateLock { () -> Device? in
+                    self.lastPingTime = Date()
+                    return self.activePeer
+                }
 
                 if let peer = peer {
                     let ping = ProtocolMessage(type: .ping, senderID: "local", targetID: peer.id)
-                    Task { try? await self?.activeTransport?.sendMessage(ping) }
+                    let transport = self.activeTransport
+                    Task {
+                        try? await transport?.sendMessage(ping)
+                    }
                 }
             }
         }
@@ -191,14 +210,12 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, @unchecked
     }
 }
 
-extension RemoteSessionManager: ScreenCaptureDelegate {
-    public func screenCaptureEngine(_ engine: ScreenCaptureEngine, didCaptureFrame frameData: Data, timestamp: Double) {
+#if os(macOS)
+extension RemoteSessionManager: FrameCaptureDelegate {
+    public func frameCaptureEngine(_ engine: ScreenCaptureEngine, didCaptureFrame frameData: Data, timestamp: Double) {
         Task {
             try? await activeTransport?.sendMediaFrame(frameData, timestamp: timestamp)
         }
     }
-
-    public func screenCaptureEngine(_ engine: ScreenCaptureEngine, didEncounterError error: Error) {
-        print("[RemoteSessionManager] Screen capture engine error: \(error)")
-    }
 }
+#endif

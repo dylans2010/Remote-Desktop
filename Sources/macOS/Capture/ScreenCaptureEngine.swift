@@ -47,6 +47,12 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, @unchecked Sen
     private var isCapturing: Bool = false
     private let lock = NSLock()
 
+    private func withStateLock<T>(_ block: () -> T) -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return block()
+    }
+
     public override init() {
         super.init()
     }
@@ -78,19 +84,20 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, @unchecked Sen
         try newStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue.global(qos: .userInteractive))
         try await newStream.startCapture()
 
-        lock.lock()
-        self.stream = newStream
-        self.isCapturing = true
-        lock.unlock()
+        withStateLock {
+            self.stream = newStream
+            self.isCapturing = true
+        }
     }
 
     /// Stop capture stream.
     public func stopCapture() async throws {
-        lock.lock()
-        let activeStream = self.stream
-        self.stream = nil
-        self.isCapturing = false
-        lock.unlock()
+        let activeStream = withStateLock { () -> SCStream? in
+            let s = self.stream
+            self.stream = nil
+            self.isCapturing = false
+            return s
+        }
 
         if let activeStream = activeStream {
             try await activeStream.stopCapture()

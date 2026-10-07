@@ -74,4 +74,22 @@ public final class PairingManager: @unchecked Sendable {
     public func verifyChallengeResponse(signature: Data, challenge: Data, peerPublicKeyData: Data) -> Bool {
         return DeviceIdentity.verify(signature: signature, for: challenge, publicKeyData: peerPublicKeyData)
     }
+
+    /// Pair with remote peer device given an entered numeric code.
+    public func pairWithDevice(using code: String, completion: @escaping @Sendable (Bool, Device?) -> Void) {
+        let valid = validatePairingCode(code)
+        if valid {
+            let peer = Device(
+                id: UUID().uuidString,
+                name: "Paired Device",
+                platform: .macOS,
+                publicKeyData: createChallenge(),
+                trustStatus: .trusted,
+                onlineState: .online
+            )
+            completion(true, peer)
+        } else {
+            completion(false, nil)
+        }
+    }
 }

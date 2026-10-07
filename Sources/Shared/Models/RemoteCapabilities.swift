@@ -1,7 +1,7 @@
 import Foundation
 
 /// Advertised capabilities supported by a peer device.
-public struct RemoteCapabilities: Codable, Sendable, Equatable {
+public struct RemoteCapabilities: Codable, Sendable, Equatable, Hashable {
     public var screenViewing: Bool
     public var remoteControl: Bool
     public var clipboard: Bool

@@ -26,7 +26,7 @@ public final class HostModeManager: @unchecked Sendable {
     public static let shared = HostModeManager()
 
     public var config = HostAccessConfig()
-    public var onRequestIncomingConnection: ((Device, @escaping (Bool) -> Void) -> Void)?
+    public var onRequestIncomingConnection: (@Sendable (Device, @escaping @Sendable (Bool) -> Void) -> Void)?
 
     private var statusItem: NSStatusItem?
     private let lock = NSLock()
@@ -61,7 +61,7 @@ public final class HostModeManager: @unchecked Sendable {
     }
 
     /// Process incoming session request from remote peer.
-    public func handleIncomingSessionRequest(from peer: Device, completion: @escaping (Bool) -> Void) {
+    public func handleIncomingSessionRequest(from peer: Device, completion: @escaping @Sendable (Bool) -> Void) {
         lock.lock()
         let currentConfig = config
         lock.unlock()

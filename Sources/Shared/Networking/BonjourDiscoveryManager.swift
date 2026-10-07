@@ -10,6 +10,9 @@ public final class BonjourDiscoveryManager: @unchecked Sendable {
     private var browser: NWBrowser?
     private let lock = NSLock()
 
+    public static let shared = BonjourDiscoveryManager()
+    private var discoveredPeersMap: [String: Device] = [:]
+
     public var onPeerDiscovered: ((Device) -> Void)?
     public var onPeerLost: ((String) -> Void)?
 
@@ -91,6 +94,21 @@ public final class BonjourDiscoveryManager: @unchecked Sendable {
         browser?.start(queue: .global(qos: .userInitiated))
     }
 
+    /// Start browsing for other Remote Desktop devices on the local LAN with a callback returning current devices.
+    public func startBrowsing(onChange: @escaping ([Device]) -> Void) {
+        onPeerDiscovered = { [weak self] _ in
+            guard let self = self else { return }
+            let devices = self.lock.withLock { Array(self.discoveredPeersMap.values) }
+            onChange(devices)
+        }
+        onPeerLost = { [weak self] _ in
+            guard let self = self else { return }
+            let devices = self.lock.withLock { Array(self.discoveredPeersMap.values) }
+            onChange(devices)
+        }
+        startBrowsing()
+    }
+
     /// Stop browsing for devices.
     public func stopBrowsing() {
         browser?.cancel()
@@ -120,11 +138,18 @@ public final class BonjourDiscoveryManager: @unchecked Sendable {
             lastSeen: Date()
         )
 
+        lock.lock()
+        discoveredPeersMap[deviceID] = device
+        lock.unlock()
+
         onPeerDiscovered?(device)
     }
 
     private func handleLostPeer(_ result: NWBrowser.Result) {
         if case .service(let name, _, _, _) = result.endpoint {
+            lock.lock()
+            discoveredPeersMap.removeValue(forKey: name)
+            lock.unlock()
             onPeerLost?(name)
         }
     }

@@ -11,19 +11,25 @@ public final class LocalNetworkTransport: ConnectionTransport, @unchecked Sendab
     private var listener: NWListener?
     private let lock = NSLock()
 
+    private func withStateLock<T>(_ block: () -> T) -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        return block()
+    }
+
     public init() {}
 
     public func connect(to peer: Device) async throws {
-        lock.lock()
-        state = .connecting
-        delegate?.transport(self, didChangeState: state)
-        lock.unlock()
+        withStateLock {
+            state = .connecting
+            delegate?.transport(self, didChangeState: state)
+        }
 
         guard let host = peer.ipAddress else {
-            lock.lock()
-            state = .failed
-            delegate?.transport(self, didChangeState: state)
-            lock.unlock()
+            withStateLock {
+                state = .failed
+                delegate?.transport(self, didChangeState: state)
+            }
             throw NSError(domain: "LocalNetworkTransport", code: 400, userInfo: [NSLocalizedDescriptionKey: "Peer IP address missing"])
         }
 
@@ -31,9 +37,9 @@ public final class LocalNetworkTransport: ConnectionTransport, @unchecked Sendab
         let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: port)
         let nwConn = NWConnection(to: endpoint, using: .tcp)
 
-        lock.lock()
-        self.connection = nwConn
-        lock.unlock()
+        withStateLock {
+            self.connection = nwConn
+        }
 
         nwConn.stateUpdateHandler = { [weak self] connState in
             guard let self = self else { return }
@@ -61,9 +67,7 @@ public final class LocalNetworkTransport: ConnectionTransport, @unchecked Sendab
 
     public func sendMessage(_ message: ProtocolMessage) async throws {
         let data = try ProtocolEngine.encode(message)
-        lock.lock()
-        let conn = connection
-        lock.unlock()
+        let conn = withStateLock { connection }
 
         guard let conn = conn, state == .connected else {
             throw NSError(domain: "LocalNetworkTransport", code: 500, userInfo: [NSLocalizedDescriptionKey: "Transport not connected"])

@@ -83,6 +83,7 @@ public final class RemoteDesktopUnitTests {
     }
 
     private static func testCoordinateMapping() -> Bool {
+        #if os(macOS)
         print("[TEST] RemoteInputEngine coordinate mapping...")
         let mappedPoint = RemoteInputEngine.mapCoordinates(normalizedX: 0.5, normalizedY: 0.5, targetDisplayWidth: 1920, targetDisplayHeight: 1080)
         if mappedPoint.x == 960 && mappedPoint.y == 540 {
@@ -92,6 +93,9 @@ public final class RemoteDesktopUnitTests {
             print("❌ CoordinateMapping point mismatch: \(mappedPoint)")
             return false
         }
+        #else
+        return true
+        #endif
     }
 
     private static func testFileTransferChunking() -> Bool {

@@ -70,7 +70,7 @@ public final class RemoteInputEngine: @unchecked Sendable {
         case .scroll:
             let deltaY = Int32(event.deltaY ?? 0.0)
             let deltaX = Int32(event.deltaX ?? 0.0)
-            let scrollEvent = CGEvent(wheelEventSource: nil, wheelUnits: .pixel, pointCount: 2, wheel1: deltaY, wheel2: deltaX, wheel3: 0)
+            let scrollEvent = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: deltaY, wheel2: deltaX, wheel3: 0)
             scrollEvent?.post(tap: .cghidEventTap)
 
         case .keyDown:

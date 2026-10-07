@@ -32,4 +32,9 @@ public final class ClipboardSyncManager: @unchecked Sendable {
     public func writeToClipboard(_ payload: ClipboardPayload) {
         platformService?.writeToClipboard(payload)
     }
+
+    /// Apply clipboard payload received from remote peer.
+    public func applyRemoteClipboard(_ payload: ClipboardPayload) {
+        writeToClipboard(payload)
+    }
 }
