@@ -7,135 +7,219 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		3AA9787834ACCE0466880013 /* Remote DesktopApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37F132326BBC6400CB3217A /* Remote DesktopApp.swift */; };
-		49C733113AAEA9A1413F4107 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E3EE688102741E6C95AFAD9 /* ContentView.swift */; };
-		A32C353A0E8BB748B02A9949 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E3EE688102741E6C95AFAD9 /* ContentView.swift */; };
-		C2CAD658BB521A17DFC3D4A8 /* Remote DesktopApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37F132326BBC6400CB3217A /* Remote DesktopApp.swift */; };
-		F0000001 /* DeviceIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000001 /* DeviceIdentity.swift */; };
-		F0000002 /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000002 /* KeychainManager.swift */; };
-		F0000003 /* Device.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000003 /* Device.swift */; };
-		F0000004 /* ProtocolEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000004 /* ProtocolEngine.swift */; };
-		F0000005 /* BonjourDiscoveryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000005 /* BonjourDiscoveryManager.swift */; };
-		F0000006 /* PairingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000006 /* PairingManager.swift */; };
-		F0000007 /* ConnectionTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000007 /* ConnectionTransport.swift */; };
-		F0000008 /* SignalingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000008 /* SignalingClient.swift */; };
-		F0000009 /* NATTraversalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000009 /* NATTraversalEngine.swift */; };
-		F0000010 /* VideoEncoderDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000010 /* VideoEncoderDecoder.swift */; };
-		F0000011 /* ClipboardSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000011 /* ClipboardSyncManager.swift */; };
-		F0000012 /* FileTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000012 /* FileTransferManager.swift */; };
-		F0000013 /* RemoteSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000013 /* RemoteSessionManager.swift */; };
-		F0000014 /* ScreenCaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000014 /* ScreenCaptureEngine.swift */; };
-		F0000015 /* RemoteInputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000015 /* RemoteInputEngine.swift */; };
-		F0000016 /* PermissionsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000016 /* PermissionsManager.swift */; };
-		F0000017 /* DisplayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000017 /* DisplayManager.swift */; };
-		F0000018 /* HostModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000018 /* HostModeManager.swift */; };
-		F0000019 /* iOSBroadcastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000019 /* iOSBroadcastManager.swift */; };
-		F0000020 /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000020 /* DeviceListView.swift */; };
-		F0000021 /* PairingModalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000021 /* PairingModalView.swift */; };
-		F0000022 /* SessionViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000022 /* SessionViewerView.swift */; };
-		F0000023 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000023 /* SettingsView.swift */; };
-		F0000024 /* RemoteDesktopUnitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000024 /* RemoteDesktopUnitTests.swift */; };
-		F0000025 /* LocalNetworkTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000025 /* LocalNetworkTransport.swift */; };
+		1220E0FCECF0B2D4587791D1 /* Device.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1A485A4A1C9B118AAC69C6 /* Device.swift */; };
+		E7B33A66B0F6302C5C59AED5 /* Device.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1A485A4A1C9B118AAC69C6 /* Device.swift */; };
+		AFB0C1A204C43B9C4A19F3A3 /* RemoteCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85DFAA1622458104B154CBE /* RemoteCapabilities.swift */; };
+		78B40C8E071F140581FF8DD9 /* RemoteCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85DFAA1622458104B154CBE /* RemoteCapabilities.swift */; };
+		214051C4B02F244AF3D98990 /* DeviceIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C2ABA31B6AE8889AAE34BE1 /* DeviceIdentity.swift */; };
+		12790C67FBED62F6D1330BFF /* DeviceIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C2ABA31B6AE8889AAE34BE1 /* DeviceIdentity.swift */; };
+		41E39FD7A732BF39284FBCDE /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4788B2B0F4424C12FFAFB72 /* KeychainManager.swift */; };
+		904306C1512C4B663C5EA73E /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4788B2B0F4424C12FFAFB72 /* KeychainManager.swift */; };
+		42096E5DFB5A0E264F5382DD /* ProtocolEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64ED7F987D619E5F7F8EE17B /* ProtocolEngine.swift */; };
+		71BA128DF00949D6C42F1B2E /* ProtocolEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64ED7F987D619E5F7F8EE17B /* ProtocolEngine.swift */; };
+		BFAD0354BD3C02B7FCEDA150 /* BonjourDiscoveryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCC713A70954244274A20E74 /* BonjourDiscoveryManager.swift */; };
+		8BDA7A91576D123DB950D44F /* BonjourDiscoveryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCC713A70954244274A20E74 /* BonjourDiscoveryManager.swift */; };
+		BE79F4D9AEF6BB4B3A3A0053 /* PairingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B59B145F03E3AD57D9B748C /* PairingManager.swift */; };
+		3FAE8C94EB8D34BC6763A24A /* PairingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B59B145F03E3AD57D9B748C /* PairingManager.swift */; };
+		9037D359C03BE4592BBC0941 /* SignalingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB4C785DA7DD473287D8391 /* SignalingClient.swift */; };
+		C660F332CDD289D183E78FFD /* SignalingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB4C785DA7DD473287D8391 /* SignalingClient.swift */; };
+		074FE6E4B3B7DBAFB7AC2C68 /* NATTraversalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65A7A9C1E91DB81623264126 /* NATTraversalEngine.swift */; };
+		AA6B8451A2BD2A4E75FA51F7 /* NATTraversalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65A7A9C1E91DB81623264126 /* NATTraversalEngine.swift */; };
+		8E3B44C2525922CF30396B9D /* ConnectionTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0B802C0CF97FAC31568E8C /* ConnectionTransport.swift */; };
+		5F1642CDB314B6BA634063E0 /* ConnectionTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0B802C0CF97FAC31568E8C /* ConnectionTransport.swift */; };
+		D3B23670DBB7B42159748B63 /* LocalNetworkTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32478E6F6E7694540C3173FC /* LocalNetworkTransport.swift */; };
+		7AF85B330FE1EB8E60C5F86F /* LocalNetworkTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32478E6F6E7694540C3173FC /* LocalNetworkTransport.swift */; };
+		6FE88373432D29BEF3B22598 /* FileTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13EADCE05AEB8763C86FDF7B /* FileTransferManager.swift */; };
+		8E3FBB041F28A40C9C8E7AB6 /* FileTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13EADCE05AEB8763C86FDF7B /* FileTransferManager.swift */; };
+		9AE492BD36608923E065F47C /* ClipboardServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19ED16825B89551766ADBE5A /* ClipboardServiceProtocol.swift */; };
+		7D1B1C56BA6B9A86248068F8 /* ClipboardServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19ED16825B89551766ADBE5A /* ClipboardServiceProtocol.swift */; };
+		93C1F48576DE32CABA6D189C /* ClipboardSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C71700E2E8201A843E83683 /* ClipboardSyncManager.swift */; };
+		60240D58F205F6E049C7F452 /* ClipboardSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C71700E2E8201A843E83683 /* ClipboardSyncManager.swift */; };
+		CBDDB0D357835B6C918B5104 /* RemoteSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10B9A71E736DA9D19E80203 /* RemoteSessionManager.swift */; };
+		4ACCC394A0B2A72C2F1A27A3 /* RemoteSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10B9A71E736DA9D19E80203 /* RemoteSessionManager.swift */; };
+		D48F8BC6F9E2AF1048AB6D38 /* VideoEncoderDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA79EB841D3BDD0B1A155AF2 /* VideoEncoderDecoder.swift */; };
+		2267E819B0A883E1379012C8 /* VideoEncoderDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA79EB841D3BDD0B1A155AF2 /* VideoEncoderDecoder.swift */; };
+		6630874496543343A557B2F8 /* RemoteDesktopUnitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7FD2BB973A82071C88011F0 /* RemoteDesktopUnitTests.swift */; };
+		56D66311F8B2467EE49AE5B8 /* RemoteDesktopUnitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7FD2BB973A82071C88011F0 /* RemoteDesktopUnitTests.swift */; };
+		7AF8FDEE20471E6BE5B5596F /* RemoteDesktopMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 894AD00F9B43664234457A20 /* RemoteDesktopMacApp.swift */; };
+		91275F75CA82A6D1205E7CAC /* MacContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1BDA927833CC28884A593FF /* MacContentView.swift */; };
+		C1458466EDADBD6BB9A92F97 /* MacDeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B317D670D1817089A283C22B /* MacDeviceListView.swift */; };
+		3E06512E115619FB07EC0719 /* MacPairingModalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91B6C7B359C05982F4CBAD9 /* MacPairingModalView.swift */; };
+		C48F7E0FF6B7819DE522826D /* MacSessionViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9768371A7CCB6DFED8CA56E /* MacSessionViewerView.swift */; };
+		3433D220BD70885AC324526C /* MacSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 753B66CD6132961B923C6102 /* MacSettingsView.swift */; };
+		DA2F171EA7C257EA318FFF2C /* DisplayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF1026B67DCFAAE275DF584E /* DisplayManager.swift */; };
+		35E4E8E3467A6B2C248D0FD7 /* HostModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 677A6537FF3698CB5412A96D /* HostModeManager.swift */; };
+		F2FD12D97FE6EACEAB5F3F15 /* MacClipboardService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926B4BC25141B985B0127FF6 /* MacClipboardService.swift */; };
+		EF4C01A976E8A3F34608B7D7 /* ScreenRecordingPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0743DC98F6C9E8A1EA282B5 /* ScreenRecordingPermissionManager.swift */; };
+		75671B11A59A7CB86E889E55 /* AccessibilityPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDE9DB3343CA58D1CCAAA633 /* AccessibilityPermissionManager.swift */; };
+		3F6DC9B4298AFA240C39B352 /* LocalNetworkPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28283DDB061A35208C5C45C /* LocalNetworkPermissionManager.swift */; };
+		AA8CD0703123E1BDA5203AED /* PermissionsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE81EA24A7D165FF8C0557D /* PermissionsManager.swift */; };
+		764D9EBD4A03C0E647FD7550 /* ScreenCaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 052A5F7F540A14E39F849A9F /* ScreenCaptureEngine.swift */; };
+		99B5071FDA205885264EA4BE /* RemoteInputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12C7EEB9257C9466D1C26635 /* RemoteInputEngine.swift */; };
+		FF27F9F0651DE1D43F7585CC /* RemoteDesktopiOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C8CBA5E805A43CD6AD10914 /* RemoteDesktopiOSApp.swift */; };
+		238E0775D84A1E12B5B263D1 /* IOSContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 283B5AC7FE58CE5CD097821F /* IOSContentView.swift */; };
+		8DF8B3C056C00B6D2B6988C2 /* IOSDeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103E9C672C8AC0E486E4C126 /* IOSDeviceListView.swift */; };
+		C02CF6E9FC6A65970C72AD21 /* IOSPairingModalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EED3B14BF7B6A51061D3442 /* IOSPairingModalView.swift */; };
+		A1AB47DF7244BD9FFE33E134 /* IOSSessionViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E552E4FD03491F1980A5E75 /* IOSSessionViewerView.swift */; };
+		F6A72AF1F630A18D2F333A19 /* IOSSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440B66C1331760874B73919B /* IOSSettingsView.swift */; };
+		916534F95B77906866627DEA /* iOSBroadcastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CC3C2374B3953FABA16C856 /* iOSBroadcastManager.swift */; };
+		A06C3D985AF2676116434D9E /* IOSClipboardService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA88E1E2924E78D638011515 /* IOSClipboardService.swift */; };
+		94BF4BEE6BCBECE0245DB511 /* IOSLocalNetworkPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE423DA1CE4A42B2518CCDFE /* IOSLocalNetworkPermissionManager.swift */; };
+		E49B62DF91AA0C47F0901743 /* IOSBroadcastPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C45526069FC5DA760AC284EC /* IOSBroadcastPermissionManager.swift */; };
+		0A5882EBC742308D00D9A272 /* BroadcastLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5BA6AA22CBE9A8776F8324 /* BroadcastLauncher.swift */; };
+		EB3DBADE131BE78F5E998E92 /* SampleHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FAF7B5F1932C230718CAFCB /* SampleHandler.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		7E3EE688102741E6C95AFAD9 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		A8413DD3129620B5EF33FB36 /* Remote Desktop-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Remote Desktop-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC1A485A4A1C9B118AAC69C6 /* Device.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models/Device.swift"; sourceTree = "<group>"; };
+		D85DFAA1622458104B154CBE /* RemoteCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models/RemoteCapabilities.swift"; sourceTree = "<group>"; };
+		3C2ABA31B6AE8889AAE34BE1 /* DeviceIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Security/DeviceIdentity.swift"; sourceTree = "<group>"; };
+		A4788B2B0F4424C12FFAFB72 /* KeychainManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Security/KeychainManager.swift"; sourceTree = "<group>"; };
+		64ED7F987D619E5F7F8EE17B /* ProtocolEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Protocol/ProtocolEngine.swift"; sourceTree = "<group>"; };
+		FCC713A70954244274A20E74 /* BonjourDiscoveryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Networking/BonjourDiscoveryManager.swift"; sourceTree = "<group>"; };
+		5B59B145F03E3AD57D9B748C /* PairingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Networking/PairingManager.swift"; sourceTree = "<group>"; };
+		2EB4C785DA7DD473287D8391 /* SignalingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Networking/SignalingClient.swift"; sourceTree = "<group>"; };
+		65A7A9C1E91DB81623264126 /* NATTraversalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Networking/NATTraversalEngine.swift"; sourceTree = "<group>"; };
+		AC0B802C0CF97FAC31568E8C /* ConnectionTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Transport/ConnectionTransport.swift"; sourceTree = "<group>"; };
+		32478E6F6E7694540C3173FC /* LocalNetworkTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Transport/LocalNetworkTransport.swift"; sourceTree = "<group>"; };
+		13EADCE05AEB8763C86FDF7B /* FileTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/FileTransferManager.swift"; sourceTree = "<group>"; };
+		19ED16825B89551766ADBE5A /* ClipboardServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/ClipboardServiceProtocol.swift"; sourceTree = "<group>"; };
+		6C71700E2E8201A843E83683 /* ClipboardSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/ClipboardSyncManager.swift"; sourceTree = "<group>"; };
+		B10B9A71E736DA9D19E80203 /* RemoteSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/RemoteSessionManager.swift"; sourceTree = "<group>"; };
+		CA79EB841D3BDD0B1A155AF2 /* VideoEncoderDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Utilities/VideoEncoderDecoder.swift"; sourceTree = "<group>"; };
+		D7FD2BB973A82071C88011F0 /* RemoteDesktopUnitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Tests/RemoteDesktopUnitTests.swift"; sourceTree = "<group>"; };
+		894AD00F9B43664234457A20 /* RemoteDesktopMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App/RemoteDesktopMacApp.swift"; sourceTree = "<group>"; };
+		E1BDA927833CC28884A593FF /* MacContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/MacContentView.swift"; sourceTree = "<group>"; };
+		B317D670D1817089A283C22B /* MacDeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/MacDeviceListView.swift"; sourceTree = "<group>"; };
+		C91B6C7B359C05982F4CBAD9 /* MacPairingModalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/MacPairingModalView.swift"; sourceTree = "<group>"; };
+		D9768371A7CCB6DFED8CA56E /* MacSessionViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/MacSessionViewerView.swift"; sourceTree = "<group>"; };
+		753B66CD6132961B923C6102 /* MacSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/MacSettingsView.swift"; sourceTree = "<group>"; };
+		AF1026B67DCFAAE275DF584E /* DisplayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Managers/DisplayManager.swift"; sourceTree = "<group>"; };
+		677A6537FF3698CB5412A96D /* HostModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Managers/HostModeManager.swift"; sourceTree = "<group>"; };
+		926B4BC25141B985B0127FF6 /* MacClipboardService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/MacClipboardService.swift"; sourceTree = "<group>"; };
+		D0743DC98F6C9E8A1EA282B5 /* ScreenRecordingPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Permissions/ScreenRecordingPermissionManager.swift"; sourceTree = "<group>"; };
+		CDE9DB3343CA58D1CCAAA633 /* AccessibilityPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Permissions/AccessibilityPermissionManager.swift"; sourceTree = "<group>"; };
+		E28283DDB061A35208C5C45C /* LocalNetworkPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Permissions/LocalNetworkPermissionManager.swift"; sourceTree = "<group>"; };
+		2EE81EA24A7D165FF8C0557D /* PermissionsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Permissions/PermissionsManager.swift"; sourceTree = "<group>"; };
+		052A5F7F540A14E39F849A9F /* ScreenCaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Capture/ScreenCaptureEngine.swift"; sourceTree = "<group>"; };
+		12C7EEB9257C9466D1C26635 /* RemoteInputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Input/RemoteInputEngine.swift"; sourceTree = "<group>"; };
+		4C8CBA5E805A43CD6AD10914 /* RemoteDesktopiOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App/RemoteDesktopiOSApp.swift"; sourceTree = "<group>"; };
+		283B5AC7FE58CE5CD097821F /* IOSContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/IOSContentView.swift"; sourceTree = "<group>"; };
+		103E9C672C8AC0E486E4C126 /* IOSDeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/IOSDeviceListView.swift"; sourceTree = "<group>"; };
+		5EED3B14BF7B6A51061D3442 /* IOSPairingModalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/IOSPairingModalView.swift"; sourceTree = "<group>"; };
+		0E552E4FD03491F1980A5E75 /* IOSSessionViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/IOSSessionViewerView.swift"; sourceTree = "<group>"; };
+		440B66C1331760874B73919B /* IOSSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/IOSSettingsView.swift"; sourceTree = "<group>"; };
+		9CC3C2374B3953FABA16C856 /* iOSBroadcastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Managers/iOSBroadcastManager.swift"; sourceTree = "<group>"; };
+		FA88E1E2924E78D638011515 /* IOSClipboardService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/IOSClipboardService.swift"; sourceTree = "<group>"; };
+		EE423DA1CE4A42B2518CCDFE /* IOSLocalNetworkPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Permissions/IOSLocalNetworkPermissionManager.swift"; sourceTree = "<group>"; };
+		C45526069FC5DA760AC284EC /* IOSBroadcastPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Permissions/IOSBroadcastPermissionManager.swift"; sourceTree = "<group>"; };
+		0B5BA6AA22CBE9A8776F8324 /* BroadcastLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Broadcast/BroadcastLauncher.swift"; sourceTree = "<group>"; };
+		7FAF7B5F1932C230718CAFCB /* SampleHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SampleHandler.swift"; sourceTree = "<group>"; };
 		DF1B204476E7C0EB8B10641D /* Remote Desktop-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Remote Desktop-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		E37F132326BBC6400CB3217A /* Remote DesktopApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Remote DesktopApp.swift"; sourceTree = "<group>"; };
-		R0000001 /* DeviceIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/DeviceIdentity.swift; sourceTree = "<group>"; };
-		R0000002 /* KeychainManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/KeychainManager.swift; sourceTree = "<group>"; };
-		R0000003 /* Device.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/Device.swift; sourceTree = "<group>"; };
-		R0000004 /* ProtocolEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/ProtocolEngine.swift; sourceTree = "<group>"; };
-		R0000005 /* BonjourDiscoveryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/BonjourDiscoveryManager.swift; sourceTree = "<group>"; };
-		R0000006 /* PairingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/PairingManager.swift; sourceTree = "<group>"; };
-		R0000007 /* ConnectionTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/ConnectionTransport.swift; sourceTree = "<group>"; };
-		R0000008 /* SignalingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/SignalingClient.swift; sourceTree = "<group>"; };
-		R0000009 /* NATTraversalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/NATTraversalEngine.swift; sourceTree = "<group>"; };
-		R0000010 /* VideoEncoderDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSession/VideoEncoderDecoder.swift; sourceTree = "<group>"; };
-		R0000011 /* ClipboardSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSession/ClipboardSyncManager.swift; sourceTree = "<group>"; };
-		R0000012 /* FileTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSession/FileTransferManager.swift; sourceTree = "<group>"; };
-		R0000013 /* RemoteSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSession/RemoteSessionManager.swift; sourceTree = "<group>"; };
-		R0000014 /* ScreenCaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = macOS/ScreenCaptureEngine.swift; sourceTree = "<group>"; };
-		R0000015 /* RemoteInputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = macOS/RemoteInputEngine.swift; sourceTree = "<group>"; };
-		R0000016 /* PermissionsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = macOS/PermissionsManager.swift; sourceTree = "<group>"; };
-		R0000017 /* DisplayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = macOS/DisplayManager.swift; sourceTree = "<group>"; };
-		R0000018 /* HostModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = macOS/HostModeManager.swift; sourceTree = "<group>"; };
-		R0000019 /* iOSBroadcastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOS/iOSBroadcastManager.swift; sourceTree = "<group>"; };
-		R0000020 /* DeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/DeviceListView.swift; sourceTree = "<group>"; };
-		R0000021 /* PairingModalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/PairingModalView.swift; sourceTree = "<group>"; };
-		R0000022 /* SessionViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/SessionViewerView.swift; sourceTree = "<group>"; };
-		R0000023 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/SettingsView.swift; sourceTree = "<group>"; };
-		R0000024 /* RemoteDesktopUnitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/RemoteDesktopUnitTests.swift; sourceTree = "<group>"; };
-		R0000025 /* LocalNetworkTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/LocalNetworkTransport.swift; sourceTree = "<group>"; };
+		A8413DD3129620B5EF33FB36 /* Remote Desktop-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Remote Desktop-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B00000000000000000000002 /* Remote Desktop-iOS-Broadcast.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Remote Desktop-iOS-Broadcast.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		147DEDD4DDEAEC25F2ACB11D /* Resources */ = {
+		GRP_SHARED /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				EC1A485A4A1C9B118AAC69C6 /* Device.swift */,
+				D85DFAA1622458104B154CBE /* RemoteCapabilities.swift */,
+				3C2ABA31B6AE8889AAE34BE1 /* DeviceIdentity.swift */,
+				A4788B2B0F4424C12FFAFB72 /* KeychainManager.swift */,
+				64ED7F987D619E5F7F8EE17B /* ProtocolEngine.swift */,
+				FCC713A70954244274A20E74 /* BonjourDiscoveryManager.swift */,
+				5B59B145F03E3AD57D9B748C /* PairingManager.swift */,
+				2EB4C785DA7DD473287D8391 /* SignalingClient.swift */,
+				65A7A9C1E91DB81623264126 /* NATTraversalEngine.swift */,
+				AC0B802C0CF97FAC31568E8C /* ConnectionTransport.swift */,
+				32478E6F6E7694540C3173FC /* LocalNetworkTransport.swift */,
+				13EADCE05AEB8763C86FDF7B /* FileTransferManager.swift */,
+				19ED16825B89551766ADBE5A /* ClipboardServiceProtocol.swift */,
+				6C71700E2E8201A843E83683 /* ClipboardSyncManager.swift */,
+				B10B9A71E736DA9D19E80203 /* RemoteSessionManager.swift */,
+				CA79EB841D3BDD0B1A155AF2 /* VideoEncoderDecoder.swift */,
+				D7FD2BB973A82071C88011F0 /* RemoteDesktopUnitTests.swift */,
 			);
-			path = Resources;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		GRP_MACOS /* macOS */ = {
+			isa = PBXGroup;
+			children = (
+				894AD00F9B43664234457A20 /* RemoteDesktopMacApp.swift */,
+				E1BDA927833CC28884A593FF /* MacContentView.swift */,
+				B317D670D1817089A283C22B /* MacDeviceListView.swift */,
+				C91B6C7B359C05982F4CBAD9 /* MacPairingModalView.swift */,
+				D9768371A7CCB6DFED8CA56E /* MacSessionViewerView.swift */,
+				753B66CD6132961B923C6102 /* MacSettingsView.swift */,
+				AF1026B67DCFAAE275DF584E /* DisplayManager.swift */,
+				677A6537FF3698CB5412A96D /* HostModeManager.swift */,
+				926B4BC25141B985B0127FF6 /* MacClipboardService.swift */,
+				D0743DC98F6C9E8A1EA282B5 /* ScreenRecordingPermissionManager.swift */,
+				CDE9DB3343CA58D1CCAAA633 /* AccessibilityPermissionManager.swift */,
+				E28283DDB061A35208C5C45C /* LocalNetworkPermissionManager.swift */,
+				2EE81EA24A7D165FF8C0557D /* PermissionsManager.swift */,
+				052A5F7F540A14E39F849A9F /* ScreenCaptureEngine.swift */,
+				12C7EEB9257C9466D1C26635 /* RemoteInputEngine.swift */,
+			);
+			path = macOS;
+			sourceTree = "<group>";
+		};
+		GRP_IOS /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				4C8CBA5E805A43CD6AD10914 /* RemoteDesktopiOSApp.swift */,
+				283B5AC7FE58CE5CD097821F /* IOSContentView.swift */,
+				103E9C672C8AC0E486E4C126 /* IOSDeviceListView.swift */,
+				5EED3B14BF7B6A51061D3442 /* IOSPairingModalView.swift */,
+				0E552E4FD03491F1980A5E75 /* IOSSessionViewerView.swift */,
+				440B66C1331760874B73919B /* IOSSettingsView.swift */,
+				9CC3C2374B3953FABA16C856 /* iOSBroadcastManager.swift */,
+				FA88E1E2924E78D638011515 /* IOSClipboardService.swift */,
+				EE423DA1CE4A42B2518CCDFE /* IOSLocalNetworkPermissionManager.swift */,
+				C45526069FC5DA760AC284EC /* IOSBroadcastPermissionManager.swift */,
+				0B5BA6AA22CBE9A8776F8324 /* BroadcastLauncher.swift */,
+			);
+			path = iOS;
+			sourceTree = "<group>";
+		};
+		GRP_BROADCAST /* BroadcastExtension */ = {
+			isa = PBXGroup;
+			children = (
+				7FAF7B5F1932C230718CAFCB /* SampleHandler.swift */,
+			);
+			path = BroadcastExtension;
 			sourceTree = "<group>";
 		};
 		7AE049A4FF0CD0F9B0F45E10 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
-				A5585C827905849F9A431BE9 /* Shared */,
+				GRP_SHARED /* Shared */,
+				GRP_MACOS /* macOS */,
+				GRP_IOS /* iOS */,
+				GRP_BROADCAST /* BroadcastExtension */,
 			);
 			path = Sources;
-			sourceTree = "<group>";
-		};
-		844BAF322ECD8A3AC311E492 = {
-			isa = PBXGroup;
-			children = (
-				147DEDD4DDEAEC25F2ACB11D /* Resources */,
-				7AE049A4FF0CD0F9B0F45E10 /* Sources */,
-				F012AD7B16271F48B4B5A0F7 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-		A5585C827905849F9A431BE9 /* Shared */ = {
-			isa = PBXGroup;
-			children = (
-				7E3EE688102741E6C95AFAD9 /* ContentView.swift */,
-				E37F132326BBC6400CB3217A /* Remote DesktopApp.swift */,
-				R0000001 /* DeviceIdentity.swift */,
-				R0000002 /* KeychainManager.swift */,
-				R0000003 /* Device.swift */,
-				R0000004 /* ProtocolEngine.swift */,
-				R0000005 /* BonjourDiscoveryManager.swift */,
-				R0000006 /* PairingManager.swift */,
-				R0000007 /* ConnectionTransport.swift */,
-				R0000008 /* SignalingClient.swift */,
-				R0000009 /* NATTraversalEngine.swift */,
-				R0000010 /* VideoEncoderDecoder.swift */,
-				R0000011 /* ClipboardSyncManager.swift */,
-				R0000012 /* FileTransferManager.swift */,
-				R0000013 /* RemoteSessionManager.swift */,
-				R0000014 /* ScreenCaptureEngine.swift */,
-				R0000015 /* RemoteInputEngine.swift */,
-				R0000016 /* PermissionsManager.swift */,
-				R0000017 /* DisplayManager.swift */,
-				R0000018 /* HostModeManager.swift */,
-				R0000019 /* iOSBroadcastManager.swift */,
-				R0000020 /* DeviceListView.swift */,
-				R0000021 /* PairingModalView.swift */,
-				R0000022 /* SessionViewerView.swift */,
-				R0000023 /* SettingsView.swift */,
-				R0000024 /* RemoteDesktopUnitTests.swift */,
-				R0000025 /* LocalNetworkTransport.swift */,
-			);
-			path = Shared;
 			sourceTree = "<group>";
 		};
 		F012AD7B16271F48B4B5A0F7 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A8413DD3129620B5EF33FB36 /* Remote Desktop-iOS.app */,
 				DF1B204476E7C0EB8B10641D /* Remote Desktop-macOS.app */,
+				A8413DD3129620B5EF33FB36 /* Remote Desktop-iOS.app */,
+				B00000000000000000000002 /* Remote Desktop-iOS-Broadcast.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		844BAF322ECD8A3AC311E492 = {
+			isa = PBXGroup;
+			children = (
+				7AE049A4FF0CD0F9B0F45E10 /* Sources */,
+				F012AD7B16271F48B4B5A0F7 /* Products */,
+			);
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -145,15 +229,13 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 390C5661EEAFCA661BEE4060 /* Build configuration list for PBXNativeTarget "Remote Desktop-macOS" */;
 			buildPhases = (
-				C4859FE039CEDE7E365C884C /* Sources */,
+				PHASE_MACOS_SOURCES /* Sources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			name = "Remote Desktop-macOS";
-			packageProductDependencies = (
-			);
 			productName = "Remote Desktop-macOS";
 			productReference = DF1B204476E7C0EB8B10641D /* Remote Desktop-macOS.app */;
 			productType = "com.apple.product-type.application";
@@ -162,18 +244,31 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3B6D3F4F031372218624A921 /* Build configuration list for PBXNativeTarget "Remote Desktop-iOS" */;
 			buildPhases = (
-				ED18752056934FAA50370E3C /* Sources */,
+				PHASE_IOS_SOURCES /* Sources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			name = "Remote Desktop-iOS";
-			packageProductDependencies = (
-			);
 			productName = "Remote Desktop-iOS";
 			productReference = A8413DD3129620B5EF33FB36 /* Remote Desktop-iOS.app */;
 			productType = "com.apple.product-type.application";
+		};
+		B00000000000000000000001 /* Remote Desktop-iOS-Broadcast */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B00000000000000000000003 /* Build configuration list for PBXNativeTarget "Remote Desktop-iOS-Broadcast" */;
+			buildPhases = (
+				PHASE_BROADCAST_SOURCES /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Remote Desktop-iOS-Broadcast";
+			productName = "Remote Desktop-iOS-Broadcast";
+			productReference = B00000000000000000000002 /* Remote Desktop-iOS-Broadcast.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -183,14 +278,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
-				TargetAttributes = {
-					0AB211A9881B6DFBCD5CC947 = {
-						DevelopmentTeam = "";
-					};
-					76E14B612CEB05ED91EAD341 = {
-						DevelopmentTeam = "";
-					};
-				};
 			};
 			buildConfigurationList = 61AFA8047F3AE688F8DAFE60 /* Build configuration list for PBXProject "Remote Desktop" */;
 			developmentRegion = en;
@@ -208,70 +295,91 @@
 			targets = (
 				76E14B612CEB05ED91EAD341 /* Remote Desktop-iOS */,
 				0AB211A9881B6DFBCD5CC947 /* Remote Desktop-macOS */,
+				B00000000000000000000001 /* Remote Desktop-iOS-Broadcast */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		C4859FE039CEDE7E365C884C /* Sources */ = {
+		PHASE_MACOS_SOURCES /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				49C733113AAEA9A1413F4107 /* ContentView.swift in Sources */,
-				C2CAD658BB521A17DFC3D4A8 /* Remote DesktopApp.swift in Sources */,
-				F0000001 /* DeviceIdentity.swift in Sources */,
-				F0000002 /* KeychainManager.swift in Sources */,
-				F0000003 /* Device.swift in Sources */,
-				F0000004 /* ProtocolEngine.swift in Sources */,
-				F0000005 /* BonjourDiscoveryManager.swift in Sources */,
-				F0000006 /* PairingManager.swift in Sources */,
-				F0000007 /* ConnectionTransport.swift in Sources */,
-				F0000008 /* SignalingClient.swift in Sources */,
-				F0000009 /* NATTraversalEngine.swift in Sources */,
-				F0000010 /* VideoEncoderDecoder.swift in Sources */,
-				F0000011 /* ClipboardSyncManager.swift in Sources */,
-				F0000012 /* FileTransferManager.swift in Sources */,
-				F0000013 /* RemoteSessionManager.swift in Sources */,
-				F0000014 /* ScreenCaptureEngine.swift in Sources */,
-				F0000015 /* RemoteInputEngine.swift in Sources */,
-				F0000016 /* PermissionsManager.swift in Sources */,
-				F0000017 /* DisplayManager.swift in Sources */,
-				F0000018 /* HostModeManager.swift in Sources */,
-				F0000020 /* DeviceListView.swift in Sources */,
-				F0000021 /* PairingModalView.swift in Sources */,
-				F0000022 /* SessionViewerView.swift in Sources */,
-				F0000023 /* SettingsView.swift in Sources */,
-				F0000024 /* RemoteDesktopUnitTests.swift in Sources */,
-				F0000025 /* LocalNetworkTransport.swift in Sources */,
+				1220E0FCECF0B2D4587791D1 /* Device.swift in Sources */,
+				AFB0C1A204C43B9C4A19F3A3 /* RemoteCapabilities.swift in Sources */,
+				214051C4B02F244AF3D98990 /* DeviceIdentity.swift in Sources */,
+				41E39FD7A732BF39284FBCDE /* KeychainManager.swift in Sources */,
+				42096E5DFB5A0E264F5382DD /* ProtocolEngine.swift in Sources */,
+				BFAD0354BD3C02B7FCEDA150 /* BonjourDiscoveryManager.swift in Sources */,
+				BE79F4D9AEF6BB4B3A3A0053 /* PairingManager.swift in Sources */,
+				9037D359C03BE4592BBC0941 /* SignalingClient.swift in Sources */,
+				074FE6E4B3B7DBAFB7AC2C68 /* NATTraversalEngine.swift in Sources */,
+				8E3B44C2525922CF30396B9D /* ConnectionTransport.swift in Sources */,
+				D3B23670DBB7B42159748B63 /* LocalNetworkTransport.swift in Sources */,
+				6FE88373432D29BEF3B22598 /* FileTransferManager.swift in Sources */,
+				9AE492BD36608923E065F47C /* ClipboardServiceProtocol.swift in Sources */,
+				93C1F48576DE32CABA6D189C /* ClipboardSyncManager.swift in Sources */,
+				CBDDB0D357835B6C918B5104 /* RemoteSessionManager.swift in Sources */,
+				D48F8BC6F9E2AF1048AB6D38 /* VideoEncoderDecoder.swift in Sources */,
+				6630874496543343A557B2F8 /* RemoteDesktopUnitTests.swift in Sources */,
+				7AF8FDEE20471E6BE5B5596F /* RemoteDesktopMacApp.swift in Sources */,
+				91275F75CA82A6D1205E7CAC /* MacContentView.swift in Sources */,
+				C1458466EDADBD6BB9A92F97 /* MacDeviceListView.swift in Sources */,
+				3E06512E115619FB07EC0719 /* MacPairingModalView.swift in Sources */,
+				C48F7E0FF6B7819DE522826D /* MacSessionViewerView.swift in Sources */,
+				3433D220BD70885AC324526C /* MacSettingsView.swift in Sources */,
+				DA2F171EA7C257EA318FFF2C /* DisplayManager.swift in Sources */,
+				35E4E8E3467A6B2C248D0FD7 /* HostModeManager.swift in Sources */,
+				F2FD12D97FE6EACEAB5F3F15 /* MacClipboardService.swift in Sources */,
+				EF4C01A976E8A3F34608B7D7 /* ScreenRecordingPermissionManager.swift in Sources */,
+				75671B11A59A7CB86E889E55 /* AccessibilityPermissionManager.swift in Sources */,
+				3F6DC9B4298AFA240C39B352 /* LocalNetworkPermissionManager.swift in Sources */,
+				AA8CD0703123E1BDA5203AED /* PermissionsManager.swift in Sources */,
+				764D9EBD4A03C0E647FD7550 /* ScreenCaptureEngine.swift in Sources */,
+				99B5071FDA205885264EA4BE /* RemoteInputEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		ED18752056934FAA50370E3C /* Sources */ = {
+		PHASE_IOS_SOURCES /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A32C353A0E8BB748B02A9949 /* ContentView.swift in Sources */,
-				3AA9787834ACCE0466880013 /* Remote DesktopApp.swift in Sources */,
-				F0000001 /* DeviceIdentity.swift in Sources */,
-				F0000002 /* KeychainManager.swift in Sources */,
-				F0000003 /* Device.swift in Sources */,
-				F0000004 /* ProtocolEngine.swift in Sources */,
-				F0000005 /* BonjourDiscoveryManager.swift in Sources */,
-				F0000006 /* PairingManager.swift in Sources */,
-				F0000007 /* ConnectionTransport.swift in Sources */,
-				F0000008 /* SignalingClient.swift in Sources */,
-				F0000009 /* NATTraversalEngine.swift in Sources */,
-				F0000010 /* VideoEncoderDecoder.swift in Sources */,
-				F0000011 /* ClipboardSyncManager.swift in Sources */,
-				F0000012 /* FileTransferManager.swift in Sources */,
-				F0000013 /* RemoteSessionManager.swift in Sources */,
-				F0000019 /* iOSBroadcastManager.swift in Sources */,
-				F0000020 /* DeviceListView.swift in Sources */,
-				F0000021 /* PairingModalView.swift in Sources */,
-				F0000022 /* SessionViewerView.swift in Sources */,
-				F0000023 /* SettingsView.swift in Sources */,
-				F0000024 /* RemoteDesktopUnitTests.swift in Sources */,
-				F0000025 /* LocalNetworkTransport.swift in Sources */,
+				E7B33A66B0F6302C5C59AED5 /* Device.swift in Sources */,
+				78B40C8E071F140581FF8DD9 /* RemoteCapabilities.swift in Sources */,
+				12790C67FBED62F6D1330BFF /* DeviceIdentity.swift in Sources */,
+				904306C1512C4B663C5EA73E /* KeychainManager.swift in Sources */,
+				71BA128DF00949D6C42F1B2E /* ProtocolEngine.swift in Sources */,
+				8BDA7A91576D123DB950D44F /* BonjourDiscoveryManager.swift in Sources */,
+				3FAE8C94EB8D34BC6763A24A /* PairingManager.swift in Sources */,
+				C660F332CDD289D183E78FFD /* SignalingClient.swift in Sources */,
+				AA6B8451A2BD2A4E75FA51F7 /* NATTraversalEngine.swift in Sources */,
+				5F1642CDB314B6BA634063E0 /* ConnectionTransport.swift in Sources */,
+				7AF85B330FE1EB8E60C5F86F /* LocalNetworkTransport.swift in Sources */,
+				8E3FBB041F28A40C9C8E7AB6 /* FileTransferManager.swift in Sources */,
+				7D1B1C56BA6B9A86248068F8 /* ClipboardServiceProtocol.swift in Sources */,
+				60240D58F205F6E049C7F452 /* ClipboardSyncManager.swift in Sources */,
+				4ACCC394A0B2A72C2F1A27A3 /* RemoteSessionManager.swift in Sources */,
+				2267E819B0A883E1379012C8 /* VideoEncoderDecoder.swift in Sources */,
+				56D66311F8B2467EE49AE5B8 /* RemoteDesktopUnitTests.swift in Sources */,
+				FF27F9F0651DE1D43F7585CC /* RemoteDesktopiOSApp.swift in Sources */,
+				238E0775D84A1E12B5B263D1 /* IOSContentView.swift in Sources */,
+				8DF8B3C056C00B6D2B6988C2 /* IOSDeviceListView.swift in Sources */,
+				C02CF6E9FC6A65970C72AD21 /* IOSPairingModalView.swift in Sources */,
+				A1AB47DF7244BD9FFE33E134 /* IOSSessionViewerView.swift in Sources */,
+				F6A72AF1F630A18D2F333A19 /* IOSSettingsView.swift in Sources */,
+				916534F95B77906866627DEA /* iOSBroadcastManager.swift in Sources */,
+				A06C3D985AF2676116434D9E /* IOSClipboardService.swift in Sources */,
+				94BF4BEE6BCBECE0245DB511 /* IOSLocalNetworkPermissionManager.swift in Sources */,
+				E49B62DF91AA0C47F0901743 /* IOSBroadcastPermissionManager.swift in Sources */,
+				0A5882EBC742308D00D9A272 /* BroadcastLauncher.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		PHASE_BROADCAST_SOURCES /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EB3DBADE131BE78F5E998E92 /* SampleHandler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -282,206 +390,123 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-					"DEBUG=1",
-				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
 				MARKETING_VERSION = 1.0;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
+		8506EC9030EFA602ED082809 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		058FE1139A0165D971F25E34 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
+				INFOPLIST_FILE = "Sources/macOS/Resources/Info.plist";
+				CODE_SIGN_ENTITLEMENTS = "Sources/macOS/Resources/RemoteDesktopMac.entitlements";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop;
 				PRODUCT_NAME = "Remote Desktop";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
-			};
-			name = Debug;
-		};
-		3A2AD2EEC8F2D00A882E83CC /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop;
-				PRODUCT_NAME = "Remote Desktop";
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		8506EC9030EFA602ED082809 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				MARKETING_VERSION = 1.0;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-		CD99D8B582B3C5F084818196 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop;
-				PRODUCT_NAME = "Remote Desktop";
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
 		D291BB72F035AF696C96358F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
+				INFOPLIST_FILE = "Sources/macOS/Resources/Info.plist";
+				CODE_SIGN_ENTITLEMENTS = "Sources/macOS/Resources/RemoteDesktopMac.entitlements";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop;
 				PRODUCT_NAME = "Remote Desktop";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		CD99D8B582B3C5F084818196 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = "Sources/iOS/Resources/Info.plist";
+				CODE_SIGN_ENTITLEMENTS = "Sources/iOS/Resources/RemoteDesktopiOS.entitlements";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop;
+				PRODUCT_NAME = "Remote Desktop";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		3A2AD2EEC8F2D00A882E83CC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = "Sources/iOS/Resources/Info.plist";
+				CODE_SIGN_ENTITLEMENTS = "Sources/iOS/Resources/RemoteDesktopiOS.entitlements";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop;
+				PRODUCT_NAME = "Remote Desktop";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		B00000000000000000000004 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = "Sources/BroadcastExtension/Resources/Info.plist";
+				CODE_SIGN_ENTITLEMENTS = "Sources/BroadcastExtension/Resources/RemoteDesktopBroadcastExtension.entitlements";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop.BroadcastExtension;
+				PRODUCT_NAME = "Remote Desktop Broadcast Extension";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B00000000000000000000005 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = "Sources/BroadcastExtension/Resources/Info.plist";
+				CODE_SIGN_ENTITLEMENTS = "Sources/BroadcastExtension/Resources/RemoteDesktopBroadcastExtension.entitlements";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop.BroadcastExtension;
+				PRODUCT_NAME = "Remote Desktop Broadcast Extension";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -502,6 +527,15 @@
 			buildConfigurations = (
 				CD99D8B582B3C5F084818196 /* Debug */,
 				3A2AD2EEC8F2D00A882E83CC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B00000000000000000000003 /* Build configuration list for PBXNativeTarget "Remote Desktop-iOS-Broadcast" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B00000000000000000000004 /* Debug */,
+				B00000000000000000000005 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
