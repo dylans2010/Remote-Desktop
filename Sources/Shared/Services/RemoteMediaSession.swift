@@ -31,6 +31,10 @@ public final class RemoteMediaSession: @unchecked Sendable {
     private var metrics = MediaHealthMetrics()
     private let lock = NSLock()
 
+    // Bounded startup queue for early captured frames before media channel is fully open (Requirement 14)
+    private var earlyFrameQueue: [(Data, Double)] = []
+    private let maxEarlyQueueCapacity = 2
+
     // Hardware decoder for controller
     private let videoDecoder = VideoHardwareDecoder()
 
@@ -40,7 +44,7 @@ public final class RemoteMediaSession: @unchecked Sendable {
     private var lastFrameReceivedDate: Date?
     private var watchdogTimer: Timer?
 
-    private var transportSender: ((Data, Double) async throws -> Void)?
+    private var transportSender: (@Sendable (Data, Double) async throws -> Void)?
 
     private init() {
         videoDecoder.onDecodedFrame = { [weak self] cgImage, timestamp in
@@ -56,7 +60,7 @@ public final class RemoteMediaSession: @unchecked Sendable {
     }
 
     /// Start a media session in a specific role (host or controller).
-    public func start(role: SessionRole, transportSender: ((Data, Double) async throws -> Void)? = nil) {
+    public func start(role: SessionRole, transportSender: (@Sendable (Data, Double) async throws -> Void)? = nil) {
         lock.lock()
         self.role = role
         self.isRunning = true
@@ -67,9 +71,21 @@ public final class RemoteMediaSession: @unchecked Sendable {
         self.frameCountInInterval = 0
         self.lastFpsCalculationTime = Date()
         self.lastFrameReceivedDate = nil
+
+        let pendingFrames = self.earlyFrameQueue
+        self.earlyFrameQueue.removeAll()
         lock.unlock()
 
         print("[RemoteMediaSession] Started media session with role: \(role.rawValue)")
+
+        // Drain any bounded early queued frames if sender is available
+        if let sender = transportSender, !pendingFrames.isEmpty {
+            Task {
+                for (frame, ts) in pendingFrames {
+                    try? await sender(frame, ts)
+                }
+            }
+        }
 
         if role == .controller {
             startWatchdog()
@@ -85,6 +101,7 @@ public final class RemoteMediaSession: @unchecked Sendable {
         self.isPaused = false
         self.transportSender = nil
         self.role = nil
+        self.earlyFrameQueue.removeAll()
         videoDecoder.invalidate()
         lock.unlock()
 
@@ -129,11 +146,26 @@ public final class RemoteMediaSession: @unchecked Sendable {
         metrics.lastFrameTimestamp = timestamp
     }
 
-    /// Host sends video frame over transport.
+    private func queueEarlyFrame(_ frameData: Data, timestamp: Double) {
+        lock.lock()
+        defer { lock.unlock() }
+        if isRunning && !isPaused {
+            if earlyFrameQueue.count >= maxEarlyQueueCapacity {
+                earlyFrameQueue.removeFirst() // Drop oldest frame (Requirement 14)
+            }
+            earlyFrameQueue.append((frameData, timestamp))
+        }
+    }
+
+    /// Host sends video frame over transport, safely queuing up to 2 frames if transport is in startup.
     public func sendVideoFrame(_ frameData: Data, timestamp: Double) async throws {
-        guard let sender = prepareFrameForSending() else { return }
-        try await sender(frameData, timestamp)
-        recordSentFrame(timestamp: timestamp)
+        let sender = prepareFrameForSending()
+        if let sender = sender {
+            try await sender(frameData, timestamp)
+            recordSentFrame(timestamp: timestamp)
+        } else {
+            queueEarlyFrame(frameData, timestamp: timestamp)
+        }
     }
 
     /// Controller receives raw video frame from transport.

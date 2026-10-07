@@ -1,6 +1,7 @@
 import Foundation
+import CryptoKit
 
-/// Unit and integration tests verifying DeviceIdentity, ProtocolEngine, Permissions, SessionState, Annotations, and Diagnostics.
+/// Unit and integration tests verifying DeviceIdentity, ProtocolEngine, Permissions, SessionState, Annotations, Transport Lifecycle, Handshake, Ping/Pong, Binary, and Video.
 public final class RemoteDesktopUnitTests {
     public static func runAllTests() -> Bool {
         print("======== Running Remote Desktop Unit & Integration Test Suite ========")
@@ -17,6 +18,11 @@ public final class RemoteDesktopUnitTests {
         passed = passed && testAnnotationModel()
         passed = passed && testConnectionHandshakePayloads()
         passed = passed && testVideoPacketSerialization()
+        passed = passed && testTransportStateMachine()
+        passed = passed && testTransportApplicationHandshake()
+        passed = passed && testTransportPingPong()
+        passed = passed && testTransportBinaryPayload1KB()
+        passed = passed && testVideoPipelineReadiness()
 
         print("======== Test Suite Result: \(passed ? "ALL PASSED" : "FAILED") ========")
         return passed
@@ -216,35 +222,30 @@ public final class RemoteDesktopUnitTests {
 
     private static func testMediaPipelineDiagnostics() -> Bool {
         print("[TEST] MediaHealthMetrics pipeline diagnostics...")
-        // Test Host perspective: frames captured = 0 -> capture issue
         let hostCaptureIssue = MediaHealthMetrics(framesCaptured: 0, framesEncoded: 0, framesSent: 0)
         guard hostCaptureIssue.diagnosePipeline(isHost: true) == .capture else {
             print("❌ Expected capture diagnosis for zero captured frames")
             return false
         }
 
-        // Test Host perspective: captured > 0, encoded = 0 -> encoding issue
         let hostEncodeIssue = MediaHealthMetrics(framesCaptured: 10, framesEncoded: 0, framesSent: 0)
         guard hostEncodeIssue.diagnosePipeline(isHost: true) == .encoding else {
             print("❌ Expected encoding diagnosis")
             return false
         }
 
-        // Test Controller perspective: frames received = 0 -> reception issue
         let controllerReceptionIssue = MediaHealthMetrics(framesReceived: 0, framesDecoded: 0, framesRendered: 0)
         guard controllerReceptionIssue.diagnosePipeline(isHost: false) == .reception else {
             print("❌ Expected reception diagnosis for zero received frames")
             return false
         }
 
-        // Test Controller perspective: frames received > 0, rendered = 0 -> rendering issue
         let controllerRenderIssue = MediaHealthMetrics(framesReceived: 100, framesDecoded: 100, framesRendered: 0)
         guard controllerRenderIssue.diagnosePipeline(isHost: false) == .rendering else {
             print("❌ Expected rendering diagnosis")
             return false
         }
 
-        // Test healthy pipeline
         let healthy = MediaHealthMetrics(framesReceived: 100, framesDecoded: 100, framesRendered: 100)
         guard healthy.diagnosePipeline(isHost: false) == .healthy else {
             print("❌ Expected healthy diagnosis")
@@ -357,6 +358,255 @@ public final class RemoteDesktopUnitTests {
         }
 
         print("✅ VideoFramePacket serialization test passed")
+        return true
+    }
+
+    // MARK: - Transport Lifecycle Tests (Requirements 2, 6, 8, 20, 21, 22)
+
+    private static func testTransportStateMachine() -> Bool {
+        print("[TEST] TransportState state machine & readiness guarantee (Requirement 2 & 6)...")
+        let transport = LocalNetworkTransport()
+
+        // 1. Initial state must be idle
+        guard transport.state == .idle else {
+            print("❌ Initial transport state expected to be .idle, got \(transport.state)")
+            return false
+        }
+
+        // 2. connecting != ready
+        guard TransportState.connecting != TransportState.ready else {
+            print("❌ TransportState.connecting cannot equal .ready")
+            return false
+        }
+
+        // 3. Mark ready transitions to ready
+        transport.markReady()
+        guard transport.state == .ready && transport.state.isReady else {
+            print("❌ Expected transport to be .ready after markReady()")
+            return false
+        }
+
+        // 4. waitUntilReady() returns immediately when ready
+        final class SafeFlag: @unchecked Sendable { var value = false }
+        let flag = SafeFlag()
+        let semaphore = DispatchSemaphore(value: 0)
+        Task {
+            do {
+                try await transport.waitUntilReady()
+                flag.value = true
+            } catch {
+                flag.value = false
+            }
+            semaphore.signal()
+        }
+        _ = semaphore.wait(timeout: .now() + 1.0)
+        guard flag.value else {
+            print("❌ waitUntilReady() failed to return on ready transport")
+            return false
+        }
+
+        print("✅ TransportState state machine & readiness guarantee passed")
+        return true
+    }
+
+    private static func testTransportApplicationHandshake() -> Bool {
+        print("[TEST] Application-level handshake payloads & cryptography (Requirement 8)...")
+        let sessionID = SessionID()
+        let clientIdentity = DeviceIdentity(deviceName: "Client Mac")
+        let hostIdentity = DeviceIdentity(deviceName: "Host Mac")
+
+        // 1. HELLO / HELLO_ACK
+        let hello = HelloPayload(clientID: clientIdentity.deviceID, clientName: clientIdentity.deviceName, clientPlatform: clientIdentity.platform, sessionID: sessionID)
+        guard let helloData = try? JSONEncoder().encode(hello),
+              let decodedHello = try? JSONDecoder().decode(HelloPayload.self, from: helloData),
+              decodedHello.sessionID == sessionID && decodedHello.protocolVersion == CURRENT_PROTOCOL_VERSION else {
+            print("❌ HELLO payload roundtrip failed")
+            return false
+        }
+
+        let helloAck = HelloAckPayload(hostID: hostIdentity.deviceID, hostName: hostIdentity.deviceName, hostPlatform: hostIdentity.platform, sessionID: sessionID)
+        guard let ackData = try? JSONEncoder().encode(helloAck),
+              let decodedAck = try? JSONDecoder().decode(HelloAckPayload.self, from: ackData),
+              decodedAck.sessionID == sessionID else {
+            print("❌ HELLO_ACK payload roundtrip failed")
+            return false
+        }
+
+        // 2. AUTH_CHALLENGE / AUTH_RESPONSE
+        let challenge = "SecureRandomChallengeBytes32Chars".data(using: .utf8)!
+        let authReq = AuthChallengePayload(sessionID: sessionID, requesterID: clientIdentity.deviceID, challenge: challenge, requesterPublicKey: clientIdentity.publicKeyRepresentation)
+        guard let hostSignature = try? hostIdentity.sign(challenge: challenge) else {
+            print("❌ Host failed to sign challenge")
+            return false
+        }
+
+        let isSignatureValid = DeviceIdentity.verify(signature: hostSignature, for: challenge, publicKeyData: hostIdentity.publicKeyRepresentation)
+        guard isSignatureValid else {
+            print("❌ Host signature verification failed")
+            return false
+        }
+
+        let authResp = AuthResponsePayload(sessionID: sessionID, signature: hostSignature, hostPublicKey: hostIdentity.publicKeyRepresentation)
+        guard let authRespData = try? JSONEncoder().encode(authResp),
+              let decodedResp = try? JSONDecoder().decode(AuthResponsePayload.self, from: authRespData),
+              decodedResp.sessionID == sessionID else {
+            print("❌ AUTH_RESPONSE payload roundtrip failed")
+            return false
+        }
+
+        // 3. SESSION_NEGOTIATION / SESSION_ACCEPTED
+        let neg = SessionNegotiationPayload(sessionID: sessionID, requestedPermissions: .fullControl, capabilities: clientIdentity.capabilities)
+        let accepted = SessionAcceptedPayload(sessionID: sessionID, approved: true, grantedPermissions: .fullControl)
+        guard let accData = try? JSONEncoder().encode(accepted),
+              let decodedAcc = try? JSONDecoder().decode(SessionAcceptedPayload.self, from: accData),
+              decodedAcc.approved && decodedAcc.grantedPermissions.controlScreen else {
+            print("❌ SESSION_ACCEPTED payload roundtrip failed")
+            return false
+        }
+
+        print("✅ Application-level handshake payloads & cryptography passed")
+        return true
+    }
+
+    private static func testTransportPingPong() -> Bool {
+        print("[TEST] Transport PING / PONG control channel health test (Requirement 20)...")
+        let sessionID = SessionID()
+        let ping = ProtocolMessage(type: .ping, senderID: "controller", targetID: "host", sessionID: sessionID, channel: .control)
+
+        guard let encodedPing = try? ProtocolEngine.encode(ping),
+              let decodedPing = try? ProtocolEngine.decode(encodedPing) else {
+            print("❌ Failed to encode/decode PING message")
+            return false
+        }
+
+        guard decodedPing.type == .ping && decodedPing.sessionID == sessionID else {
+            print("❌ PING message fields mismatch")
+            return false
+        }
+
+        // Host responds with PONG
+        let pong = ProtocolMessage(type: .pong, senderID: "host", targetID: "controller", sessionID: sessionID, channel: .control)
+        guard let encodedPong = try? ProtocolEngine.encode(pong),
+              let decodedPong = try? ProtocolEngine.decode(encodedPong) else {
+            print("❌ Failed to encode/decode PONG message")
+            return false
+        }
+
+        guard decodedPong.type == .pong && decodedPong.sessionID == sessionID else {
+            print("❌ PONG message fields mismatch")
+            return false
+        }
+
+        // Simulate RTT calculation
+        let sendDate = ping.timestamp
+        let receiveDate = Date().addingTimeInterval(0.015) // +15ms
+        let rtt = receiveDate.timeIntervalSince(sendDate) * 1000.0
+        guard rtt >= 0.0 else {
+            print("❌ Calculated RTT invalid: \(rtt)")
+            return false
+        }
+
+        print("✅ Transport PING / PONG control health test passed (Simulated RTT: \(Int(rtt))ms)")
+        return true
+    }
+
+    private static func testTransportBinaryPayload1KB() -> Bool {
+        print("[TEST] 1 KB binary payload transmission & SHA-256 integrity (Requirement 21)...")
+        // 1. Generate 1024 bytes of binary payload
+        var randomBytes = Data(count: 1024)
+        _ = randomBytes.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, 1024, $0.baseAddress!) }
+
+        // 2. Compute SHA-256 hash
+        let digest = SHA256.hash(data: randomBytes)
+        let hashString = digest.compactMap { String(format: "%02x", $0) }.joined()
+
+        // 3. Wrap in ProtocolMessage container
+        let sessionID = SessionID()
+        let binaryMsg = ProtocolMessage(
+            type: .fileChunk,
+            senderID: "sender",
+            targetID: "receiver",
+            sessionID: sessionID,
+            channel: .session,
+            payload: randomBytes
+        )
+
+        guard let encoded = try? ProtocolEngine.encode(binaryMsg),
+              let decoded = try? ProtocolEngine.decode(encoded),
+              let payload = decoded.payload else {
+            print("❌ Failed to encode/decode 1 KB binary protocol message")
+            return false
+        }
+
+        // 4. Verify received payload hash matches exactly
+        let receivedDigest = SHA256.hash(data: payload)
+        let receivedHashString = receivedDigest.compactMap { String(format: "%02x", $0) }.joined()
+
+        guard payload.count == 1024 && receivedHashString == hashString else {
+            print("❌ Binary payload SHA-256 hash mismatch! Sent: \(hashString), Recv: \(receivedHashString)")
+            return false
+        }
+
+        print("✅ 1 KB binary payload transmission & SHA-256 integrity passed")
+        return true
+    }
+
+    private static func testVideoPipelineReadiness() -> Bool {
+        print("[TEST] Video pipeline readiness enforcement & frame delivery (Requirement 22)...")
+        let transport = LocalNetworkTransport()
+
+        // 1. Verify sending media frame throws when transport is NOT ready
+        final class SafeFlag2: @unchecked Sendable { var value = false }
+        let flag2 = SafeFlag2()
+        let sem1 = DispatchSemaphore(value: 0)
+        Task {
+            do {
+                try await transport.sendMediaFrame(Data([0x00, 0x01]), timestamp: 1.0)
+            } catch {
+                flag2.value = true
+            }
+            sem1.signal()
+        }
+        _ = sem1.wait(timeout: .now() + 1.0)
+
+        guard flag2.value else {
+            print("❌ Expected sendMediaFrame to throw when transport is not ready")
+            return false
+        }
+
+        // 2. Mark transport ready
+        transport.markReady()
+        guard transport.state == .ready else {
+            print("❌ Transport not ready after markReady()")
+            return false
+        }
+
+        // 3. Verify RemoteMediaSession controller receives frame
+        let dummyPacket = VideoFramePacket(
+            sequenceNumber: 1,
+            timestamp: 100.0,
+            codec: .h264,
+            isKeyframe: true,
+            width: 1920,
+            height: 1080,
+            sps: Data([0x67]),
+            pps: Data([0x68]),
+            payload: Data(repeating: 0x55, count: 500)
+        )
+        let serialized = dummyPacket.serialize()
+
+        RemoteMediaSession.shared.start(role: .controller)
+        RemoteMediaSession.shared.receiveVideoFrame(serialized, timestamp: 100.0)
+
+        let metrics = RemoteMediaSession.shared.getHealthMetrics()
+        guard metrics.framesReceived >= 1 else {
+            print("❌ RemoteMediaSession failed to record received frame")
+            RemoteMediaSession.shared.stop()
+            return false
+        }
+
+        RemoteMediaSession.shared.stop()
+        print("✅ Video pipeline readiness enforcement & frame delivery passed")
         return true
     }
 }

@@ -7,16 +7,24 @@ public struct MacDiagnosticsView: View {
     public let permissions: RemoteSessionPermissions
     public let peerName: String
     public let isHost: Bool
+    public let transportDiagnostics: TransportDiagnostics
 
-    public init(metrics: MediaHealthMetrics, permissions: RemoteSessionPermissions, peerName: String, isHost: Bool = false) {
+    public init(
+        metrics: MediaHealthMetrics,
+        permissions: RemoteSessionPermissions,
+        peerName: String,
+        isHost: Bool = false,
+        transportDiagnostics: TransportDiagnostics? = nil
+    ) {
         self.metrics = metrics
         self.permissions = permissions
         self.peerName = peerName
         self.isHost = isHost
+        self.transportDiagnostics = transportDiagnostics ?? RemoteSessionManager.shared.activeTransport?.diagnostics ?? TransportDiagnostics()
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 18) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Session Diagnostics")
@@ -47,49 +55,68 @@ public struct MacDiagnosticsView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .padding(12)
+            .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(NSColor.controlBackgroundColor))
             .cornerRadius(8)
 
-            // Two-column metrics grid
-            Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 12) {
-                GridRow {
-                    metricItem(title: "Connection", value: "Direct LAN P2P")
-                    metricItem(title: "Round Trip Time (RTT)", value: "\(Int(metrics.rttMs)) ms")
-                }
+            // Transport Layer Diagnostics (Requirement 16)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Transport Lifecycle Diagnostics")
+                    .font(.headline)
 
-                GridRow {
-                    metricItem(title: "Stream Framerate", value: String(format: "%.1f FPS", metrics.currentFps))
-                    metricItem(title: "Estimated Bitrate", value: String(format: "%.1f Mbps", metrics.bitrateMbps))
-                }
-
-                if isHost {
+                Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 8) {
                     GridRow {
-                        metricItem(title: "Frames Captured", value: "\(metrics.framesCaptured)")
-                        metricItem(title: "Frames Encoded", value: "\(metrics.framesEncoded)")
+                        metricItem(title: "Transport State", value: transportDiagnostics.state.description)
+                        metricItem(title: "Messages Sent / Recv", value: "\(transportDiagnostics.messagesSent) / \(transportDiagnostics.messagesReceived)")
                     }
                     GridRow {
-                        metricItem(title: "Frames Sent", value: "\(metrics.framesSent)")
-                        metricItem(title: "Codec", value: metrics.codec)
+                        metricItem(title: "Bytes Sent / Recv", value: "\(formatBytes(transportDiagnostics.bytesSent)) / \(formatBytes(transportDiagnostics.bytesReceived))")
+                        metricItem(title: "Round Trip Time (RTT)", value: "\(Int(metrics.rttMs)) ms")
                     }
-                } else {
-                    GridRow {
-                        metricItem(title: "Frames Received", value: "\(metrics.framesReceived)")
-                        metricItem(title: "Frames Decoded", value: "\(metrics.framesDecoded)")
-                    }
-                    GridRow {
-                        metricItem(title: "Frames Rendered", value: "\(metrics.framesRendered)")
-                        metricItem(title: "Packet Loss", value: String(format: "%.1f%%", metrics.packetLossPercent))
-                    }
-                }
-
-                GridRow {
-                    metricItem(title: "Resolution", value: metrics.activeResolution)
-                    metricItem(title: "Security & Encryption", value: "Curve25519 Encrypted")
                 }
             }
-            .padding(.vertical, 4)
+            .padding(10)
+            .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
+            .cornerRadius(8)
+
+            // Media Metrics Grid
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Media Stream Telemetry")
+                    .font(.headline)
+
+                Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 8) {
+                    GridRow {
+                        metricItem(title: "Framerate", value: String(format: "%.1f FPS", metrics.currentFps))
+                        metricItem(title: "Bitrate", value: String(format: "%.1f Mbps", metrics.bitrateMbps))
+                    }
+
+                    if isHost {
+                        GridRow {
+                            metricItem(title: "Frames Captured", value: "\(metrics.framesCaptured)")
+                            metricItem(title: "Frames Encoded", value: "\(metrics.framesEncoded)")
+                        }
+                        GridRow {
+                            metricItem(title: "Frames Sent", value: "\(metrics.framesSent)")
+                            metricItem(title: "Codec", value: metrics.codec)
+                        }
+                    } else {
+                        GridRow {
+                            metricItem(title: "Frames Received", value: "\(metrics.framesReceived)")
+                            metricItem(title: "Frames Decoded", value: "\(metrics.framesDecoded)")
+                        }
+                        GridRow {
+                            metricItem(title: "Frames Rendered", value: "\(metrics.framesRendered)")
+                            metricItem(title: "Packet Loss", value: String(format: "%.1f%%", metrics.packetLossPercent))
+                        }
+                    }
+
+                    GridRow {
+                        metricItem(title: "Resolution", value: metrics.activeResolution)
+                        metricItem(title: "Security & Encryption", value: "Curve25519 Encrypted")
+                    }
+                }
+            }
 
             Divider()
 
@@ -98,8 +125,8 @@ public struct MacDiagnosticsView: View {
                 Text("Session Permissions")
                     .font(.headline)
 
-                HStack(spacing: 16) {
-                    permPill(title: "Screen Viewing", allowed: permissions.viewScreen)
+                HStack(spacing: 12) {
+                    permPill(title: "Viewing", allowed: permissions.viewScreen)
                     permPill(title: "Mouse", allowed: permissions.mouse)
                     permPill(title: "Keyboard", allowed: permissions.keyboard)
                     permPill(title: "Annotations", allowed: permissions.annotation)
@@ -109,8 +136,18 @@ public struct MacDiagnosticsView: View {
 
             Spacer()
         }
-        .padding(24)
-        .frame(width: 520, height: 480)
+        .padding(20)
+        .frame(width: 540, height: 560)
+    }
+
+    private func formatBytes(_ bytes: UInt64) -> String {
+        if bytes >= 1024 * 1024 {
+            return String(format: "%.1f MB", Double(bytes) / (1024.0 * 1024.0))
+        } else if bytes >= 1024 {
+            return String(format: "%.1f KB", Double(bytes) / 1024.0)
+        } else {
+            return "\(bytes) B"
+        }
     }
 
     private func metricItem(title: String, value: String) -> some View {

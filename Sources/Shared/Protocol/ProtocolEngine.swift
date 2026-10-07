@@ -6,6 +6,11 @@ public let CURRENT_PROTOCOL_VERSION: Int = 1
 /// Strongly-typed network protocol message envelope and actions.
 public enum ProtocolMessageType: String, Codable, Sendable {
     case hello
+    case helloAck
+    case authChallenge
+    case authResponse
+    case sessionNegotiation
+    case sessionAccepted
     case pairRequest
     case pairAccepted
     case pairRejected
@@ -13,7 +18,6 @@ public enum ProtocolMessageType: String, Codable, Sendable {
     case sessionAnswer
     case iceCandidate
     case sessionRequest
-    case sessionAccepted
     case sessionRejected
     case connectionRequest
     case connectionResponse
@@ -104,6 +108,8 @@ public struct ClipboardPayload: Codable, Sendable {
 public struct ProtocolMessage: Codable, Sendable {
     public let version: Int
     public let type: ProtocolMessageType
+    public let sessionID: SessionID?
+    public let channel: TransportChannel?
     public let senderID: String
     public let targetID: String?
     public let payload: Data?
@@ -113,6 +119,8 @@ public struct ProtocolMessage: Codable, Sendable {
         type: ProtocolMessageType,
         senderID: String,
         targetID: String? = nil,
+        sessionID: SessionID? = nil,
+        channel: TransportChannel? = nil,
         payload: Data? = nil,
         version: Int = CURRENT_PROTOCOL_VERSION
     ) {
@@ -120,6 +128,8 @@ public struct ProtocolMessage: Codable, Sendable {
         self.type = type
         self.senderID = senderID
         self.targetID = targetID
+        self.sessionID = sessionID
+        self.channel = channel
         self.payload = payload
         self.timestamp = Date()
     }
@@ -142,6 +152,151 @@ public struct ProtocolEngine {
             ])
         }
         return msg
+    }
+}
+
+// MARK: - Handshake Payloads (Requirement 8)
+
+/// Payload for initial connection HELLO from Controller to Host.
+public struct HelloPayload: Codable, Sendable {
+    public let protocolVersion: Int
+    public let clientID: String
+    public let clientName: String
+    public let clientPlatform: DevicePlatform
+    public let sessionID: SessionID
+    public let supportedCodecs: [String]
+
+    public init(
+        protocolVersion: Int = CURRENT_PROTOCOL_VERSION,
+        clientID: String,
+        clientName: String,
+        clientPlatform: DevicePlatform,
+        sessionID: SessionID,
+        supportedCodecs: [String] = ["H.264"]
+    ) {
+        self.protocolVersion = protocolVersion
+        self.clientID = clientID
+        self.clientName = clientName
+        self.clientPlatform = clientPlatform
+        self.sessionID = sessionID
+        self.supportedCodecs = supportedCodecs
+    }
+}
+
+/// Payload response for HELLO_ACK from Host to Controller.
+public struct HelloAckPayload: Codable, Sendable {
+    public let protocolVersion: Int
+    public let hostID: String
+    public let hostName: String
+    public let hostPlatform: DevicePlatform
+    public let sessionID: SessionID
+    public let supportedCodecs: [String]
+
+    public init(
+        protocolVersion: Int = CURRENT_PROTOCOL_VERSION,
+        hostID: String,
+        hostName: String,
+        hostPlatform: DevicePlatform,
+        sessionID: SessionID,
+        supportedCodecs: [String] = ["H.264"]
+    ) {
+        self.protocolVersion = protocolVersion
+        self.hostID = hostID
+        self.hostName = hostName
+        self.hostPlatform = hostPlatform
+        self.sessionID = sessionID
+        self.supportedCodecs = supportedCodecs
+    }
+}
+
+/// Payload for AUTH_CHALLENGE from Controller to Host.
+public struct AuthChallengePayload: Codable, Sendable {
+    public let sessionID: SessionID
+    public let requesterID: String
+    public let challenge: Data
+    public let requesterPublicKey: Data
+
+    public init(sessionID: SessionID, requesterID: String, challenge: Data, requesterPublicKey: Data) {
+        self.sessionID = sessionID
+        self.requesterID = requesterID
+        self.challenge = challenge
+        self.requesterPublicKey = requesterPublicKey
+    }
+}
+
+/// Payload for AUTH_RESPONSE from Host to Controller.
+public struct AuthResponsePayload: Codable, Sendable {
+    public let sessionID: SessionID
+    public let signature: Data
+    public let hostPublicKey: Data
+    public let hostChallenge: Data?
+
+    public init(sessionID: SessionID, signature: Data, hostPublicKey: Data, hostChallenge: Data? = nil) {
+        self.sessionID = sessionID
+        self.signature = signature
+        self.hostPublicKey = hostPublicKey
+        self.hostChallenge = hostChallenge
+    }
+}
+
+/// Payload for SESSION_NEGOTIATION from Controller to Host.
+public struct SessionNegotiationPayload: Codable, Sendable {
+    public let sessionID: SessionID
+    public let requestedPermissions: RemoteSessionPermissions
+    public let capabilities: RemoteCapabilities
+    public let preferredCodec: String
+    public let targetWidth: Int
+    public let targetHeight: Int
+    public let frameRate: Int
+
+    public init(
+        sessionID: SessionID,
+        requestedPermissions: RemoteSessionPermissions,
+        capabilities: RemoteCapabilities,
+        preferredCodec: String = "H.264",
+        targetWidth: Int = 1920,
+        targetHeight: Int = 1080,
+        frameRate: Int = 60
+    ) {
+        self.sessionID = sessionID
+        self.requestedPermissions = requestedPermissions
+        self.capabilities = capabilities
+        self.preferredCodec = preferredCodec
+        self.targetWidth = targetWidth
+        self.targetHeight = targetHeight
+        self.frameRate = frameRate
+    }
+}
+
+/// Payload for SESSION_ACCEPTED from Host to Controller.
+public struct SessionAcceptedPayload: Codable, Sendable {
+    public let sessionID: SessionID
+    public let approved: Bool
+    public let grantedPermissions: RemoteSessionPermissions
+    public let negotiatedCodec: String
+    public let negotiatedWidth: Int
+    public let negotiatedHeight: Int
+    public let negotiatedFrameRate: Int
+    public let rejectionReason: String?
+
+    public init(
+        sessionID: SessionID,
+        approved: Bool,
+        grantedPermissions: RemoteSessionPermissions,
+        negotiatedCodec: String = "H.264",
+        negotiatedWidth: Int = 1920,
+        negotiatedHeight: Int = 1080,
+        negotiatedFrameRate: Int = 60,
+        rejectionReason: String? = nil
+    ) {
+        self.sessionID = sessionID
+        self.approved = approved
+        self.grantedPermissions = grantedPermissions
+        self.negotiatedCodec = negotiatedCodec
+        self.negotiatedWidth = negotiatedWidth
+        self.negotiatedHeight = negotiatedHeight
+        self.negotiatedFrameRate = negotiatedFrameRate
+        self.rejectionReason = rejectionReason
     }
 }
 
@@ -222,7 +377,7 @@ public struct PairingConfirmPayload: Codable, Sendable {
     }
 }
 
-// MARK: - Negotiation & Handshake Payloads
+// MARK: - Negotiation & Handshake Payloads (Legacy)
 
 /// Payload for incoming session connection requests from a controller to a host.
 public struct ConnectionRequestPayload: Codable, Sendable {
@@ -314,4 +469,3 @@ public struct SessionEndedPayload: Codable, Sendable {
         self.endedByHost = endedByHost
     }
 }
-

@@ -7,12 +7,20 @@ public struct IOSDiagnosticsView: View {
     public let permissions: RemoteSessionPermissions
     public let peerName: String
     public let isHost: Bool
+    public let transportDiagnostics: TransportDiagnostics
 
-    public init(metrics: MediaHealthMetrics, permissions: RemoteSessionPermissions, peerName: String, isHost: Bool = false) {
+    public init(
+        metrics: MediaHealthMetrics,
+        permissions: RemoteSessionPermissions,
+        peerName: String,
+        isHost: Bool = false,
+        transportDiagnostics: TransportDiagnostics? = nil
+    ) {
         self.metrics = metrics
         self.permissions = permissions
         self.peerName = peerName
         self.isHost = isHost
+        self.transportDiagnostics = transportDiagnostics ?? RemoteSessionManager.shared.activeTransport?.diagnostics ?? TransportDiagnostics()
     }
 
     public var body: some View {
@@ -35,11 +43,17 @@ public struct IOSDiagnosticsView: View {
                     .padding(.vertical, 4)
                 }
 
-                Section(header: Text("Network & Video Performance")) {
-                    row(title: "Connection Mode", value: "Direct LAN P2P")
+                Section(header: Text("Transport Layer")) {
+                    row(title: "Transport State", value: transportDiagnostics.state.description)
+                    row(title: "Messages Sent / Recv", value: "\(transportDiagnostics.messagesSent) / \(transportDiagnostics.messagesReceived)")
+                    row(title: "Bytes Sent / Recv", value: "\(formatBytes(transportDiagnostics.bytesSent)) / \(formatBytes(transportDiagnostics.bytesReceived))")
                     row(title: "Round Trip Time (RTT)", value: "\(Int(metrics.rttMs)) ms")
+                }
+
+                Section(header: Text("Video Performance")) {
                     row(title: "Framerate", value: String(format: "%.1f FPS", metrics.currentFps))
                     row(title: "Bitrate", value: String(format: "%.1f Mbps", metrics.bitrateMbps))
+                    row(title: "Codec", value: metrics.codec)
                 }
 
                 Section(header: Text("Frame Delivery Pipeline")) {
@@ -53,7 +67,6 @@ public struct IOSDiagnosticsView: View {
                         row(title: "Frames Rendered", value: "\(metrics.framesRendered)")
                         row(title: "Packet Loss", value: String(format: "%.1f%%", metrics.packetLossPercent))
                     }
-                    row(title: "Codec", value: metrics.codec)
                 }
 
                 Section(header: Text("Active Permissions")) {
@@ -70,6 +83,16 @@ public struct IOSDiagnosticsView: View {
                     Button("Done") { dismiss() }
                 }
             }
+        }
+    }
+
+    private func formatBytes(_ bytes: UInt64) -> String {
+        if bytes >= 1024 * 1024 {
+            return String(format: "%.1f MB", Double(bytes) / (1024.0 * 1024.0))
+        } else if bytes >= 1024 {
+            return String(format: "%.1f KB", Double(bytes) / 1024.0)
+        } else {
+            return "\(bytes) B"
         }
     }
 
