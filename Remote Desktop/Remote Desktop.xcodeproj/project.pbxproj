@@ -1,0 +1,402 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		3AA9787834ACCE0466880013 /* Remote DesktopApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37F132326BBC6400CB3217A /* Remote DesktopApp.swift */; };
+		49C733113AAEA9A1413F4107 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E3EE688102741E6C95AFAD9 /* ContentView.swift */; };
+		A32C353A0E8BB748B02A9949 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E3EE688102741E6C95AFAD9 /* ContentView.swift */; };
+		C2CAD658BB521A17DFC3D4A8 /* Remote DesktopApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37F132326BBC6400CB3217A /* Remote DesktopApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		7E3EE688102741E6C95AFAD9 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A8413DD3129620B5EF33FB36 /* Remote Desktop-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Remote Desktop-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DF1B204476E7C0EB8B10641D /* Remote Desktop-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Remote Desktop-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E37F132326BBC6400CB3217A /* Remote DesktopApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Remote DesktopApp.swift"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		147DEDD4DDEAEC25F2ACB11D /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		7AE049A4FF0CD0F9B0F45E10 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A5585C827905849F9A431BE9 /* Shared */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		844BAF322ECD8A3AC311E492 = {
+			isa = PBXGroup;
+			children = (
+				147DEDD4DDEAEC25F2ACB11D /* Resources */,
+				7AE049A4FF0CD0F9B0F45E10 /* Sources */,
+				F012AD7B16271F48B4B5A0F7 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A5585C827905849F9A431BE9 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				7E3EE688102741E6C95AFAD9 /* ContentView.swift */,
+				E37F132326BBC6400CB3217A /* Remote DesktopApp.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		F012AD7B16271F48B4B5A0F7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A8413DD3129620B5EF33FB36 /* Remote Desktop-iOS.app */,
+				DF1B204476E7C0EB8B10641D /* Remote Desktop-macOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0AB211A9881B6DFBCD5CC947 /* Remote Desktop-macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 390C5661EEAFCA661BEE4060 /* Build configuration list for PBXNativeTarget "Remote Desktop-macOS" */;
+			buildPhases = (
+				C4859FE039CEDE7E365C884C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Remote Desktop-macOS";
+			packageProductDependencies = (
+			);
+			productName = "Remote Desktop-macOS";
+			productReference = DF1B204476E7C0EB8B10641D /* Remote Desktop-macOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		76E14B612CEB05ED91EAD341 /* Remote Desktop-iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3B6D3F4F031372218624A921 /* Build configuration list for PBXNativeTarget "Remote Desktop-iOS" */;
+			buildPhases = (
+				ED18752056934FAA50370E3C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Remote Desktop-iOS";
+			packageProductDependencies = (
+			);
+			productName = "Remote Desktop-iOS";
+			productReference = A8413DD3129620B5EF33FB36 /* Remote Desktop-iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CC0165849BF4E221E2AE7C83 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					0AB211A9881B6DFBCD5CC947 = {
+						DevelopmentTeam = "";
+					};
+					76E14B612CEB05ED91EAD341 = {
+						DevelopmentTeam = "";
+					};
+				};
+			};
+			buildConfigurationList = 61AFA8047F3AE688F8DAFE60 /* Build configuration list for PBXProject "Remote Desktop" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 844BAF322ECD8A3AC311E492;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F012AD7B16271F48B4B5A0F7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				76E14B612CEB05ED91EAD341 /* Remote Desktop-iOS */,
+				0AB211A9881B6DFBCD5CC947 /* Remote Desktop-macOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C4859FE039CEDE7E365C884C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				49C733113AAEA9A1413F4107 /* ContentView.swift in Sources */,
+				C2CAD658BB521A17DFC3D4A8 /* Remote DesktopApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ED18752056934FAA50370E3C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A32C353A0E8BB748B02A9949 /* ContentView.swift in Sources */,
+				3AA9787834ACCE0466880013 /* Remote DesktopApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		01E68CA521F0E44343247BB5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		058FE1139A0165D971F25E34 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop;
+				PRODUCT_NAME = "Remote Desktop";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		3A2AD2EEC8F2D00A882E83CC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop;
+				PRODUCT_NAME = "Remote Desktop";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		8506EC9030EFA602ED082809 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		CD99D8B582B3C5F084818196 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop;
+				PRODUCT_NAME = "Remote Desktop";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D291BB72F035AF696C96358F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dylans2010.RemoteDesktop;
+				PRODUCT_NAME = "Remote Desktop";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		390C5661EEAFCA661BEE4060 /* Build configuration list for PBXNativeTarget "Remote Desktop-macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				058FE1139A0165D971F25E34 /* Debug */,
+				D291BB72F035AF696C96358F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3B6D3F4F031372218624A921 /* Build configuration list for PBXNativeTarget "Remote Desktop-iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CD99D8B582B3C5F084818196 /* Debug */,
+				3A2AD2EEC8F2D00A882E83CC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		61AFA8047F3AE688F8DAFE60 /* Build configuration list for PBXProject "Remote Desktop" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				01E68CA521F0E44343247BB5 /* Debug */,
+				8506EC9030EFA602ED082809 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CC0165849BF4E221E2AE7C83 /* Project object */;
+}
