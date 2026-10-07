@@ -1,0 +1,12 @@
+# Build output & artifacts
+build/
+DerivedData/
+
+# User-specific Xcode data
+*.xcuserstate
+project.xcworkspace/xcuserdata/
+*.xcuserdatad/
+xcuserdata/
+
+# macOS system files
+.DS_Store

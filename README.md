@@ -20,7 +20,8 @@
 
 ## Documentation
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture, component layers, and data flow.
-- [SECURITY.md](SECURITY.md) - Trust model, threat analysis, end-to-end encryption, and Keychain usage.
-- [NETWORKING.md](NETWORKING.md) - Protocol specification, signaling, NAT traversal, and STUN/TURN fallback.
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Building, testing, and running local signaling servers.
+- [INSTALL.md](Docs/INSTALL.md) - Installation guide, automated build scripts, DMG installer, and iOS sideloading.
+- [ARCHITECTURE.md](Docs/ARCHITECTURE.md) - System architecture, component layers, and data flow.
+- [SECURITY.md](Docs/SECURITY.md) - Trust model, threat analysis, end-to-end encryption, and Keychain usage.
+- [NETWORKING.md](Docs/NETWORKING.md) - Protocol specification, signaling, NAT traversal, and STUN/TURN fallback.
+- [DEVELOPMENT.md](Docs/DEVELOPMENT.md) - Building, testing, and running local signaling servers.
