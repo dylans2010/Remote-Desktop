@@ -39,6 +39,7 @@ public struct Device: Identifiable, Codable, Sendable, Equatable, Hashable {
     public var isThisDevice: Bool
     public var ipAddress: String?
     public var port: UInt16?
+    public var defaultPermissions: RemoteSessionPermissions
 
     public init(
         id: String,
@@ -51,7 +52,8 @@ public struct Device: Identifiable, Codable, Sendable, Equatable, Hashable {
         lastSeen: Date = Date(),
         isThisDevice: Bool = false,
         ipAddress: String? = nil,
-        port: UInt16? = nil
+        port: UInt16? = nil,
+        defaultPermissions: RemoteSessionPermissions = .standardDefault
     ) {
         self.id = id
         self.name = name
@@ -64,6 +66,7 @@ public struct Device: Identifiable, Codable, Sendable, Equatable, Hashable {
         self.isThisDevice = isThisDevice
         self.ipAddress = ipAddress
         self.port = port
+        self.defaultPermissions = defaultPermissions
     }
 
     public static func == (lhs: Device, rhs: Device) -> Bool {
@@ -108,7 +111,27 @@ public final class TrustModel: @unchecked Sendable {
         saveTrustedDevices(devicesArray)
     }
 
-    /// Revoke trust for a device.
+    /// Retrieve default permissions configured for a trusted device.
+    public func defaultPermissions(for deviceID: String) -> RemoteSessionPermissions {
+        lock.lock()
+        defer { lock.unlock() }
+        return trustedDevicesMap[deviceID]?.defaultPermissions ?? .standardDefault
+    }
+
+    /// Update default permissions for a trusted device.
+    public func updateDefaultPermissions(for deviceID: String, permissions: RemoteSessionPermissions) {
+        lock.lock()
+        if var device = trustedDevicesMap[deviceID] {
+            device.defaultPermissions = permissions
+            trustedDevicesMap[deviceID] = device
+        }
+        let devicesArray = Array(trustedDevicesMap.values)
+        lock.unlock()
+
+        saveTrustedDevices(devicesArray)
+    }
+
+    /// Revoke trust for a device and terminate any active session with it.
     public func revokeDevice(deviceID: String) {
         lock.lock()
         if var device = trustedDevicesMap[deviceID] {
@@ -121,6 +144,9 @@ public final class TrustModel: @unchecked Sendable {
         lock.unlock()
 
         saveTrustedDevices(devicesArray)
+
+        // Terminate any active remote session with the revoked device immediately
+        RemoteSessionManager.shared.handleTrustRevocation(deviceID: deviceID)
     }
 
     /// Remove a device completely.
@@ -131,6 +157,7 @@ public final class TrustModel: @unchecked Sendable {
         lock.unlock()
 
         saveTrustedDevices(devicesArray)
+        RemoteSessionManager.shared.handleTrustRevocation(deviceID: deviceID)
     }
 
     // MARK: - Keychain Sync

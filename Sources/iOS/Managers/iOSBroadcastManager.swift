@@ -1,6 +1,8 @@
 import Foundation
 import ReplayKit
 import UIKit
+import CoreImage
+import ImageIO
 
 /// State of iOS ReplayKit screen broadcast stream.
 public enum BroadcastState: String, Codable, Sendable {
@@ -19,6 +21,9 @@ public final class iOSBroadcastManager: NSObject, @unchecked Sendable {
     public var onFrameCaptured: ((Data, Double) -> Void)?
 
     private let lock = NSLock()
+    private let ciContext = CIContext(options: [.useSoftwareRenderer: false, .cacheIntermediates: false])
+    private let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+    private var isCompressing = false
 
     private override init() {
         super.init()
@@ -50,16 +55,32 @@ public final class iOSBroadcastManager: NSObject, @unchecked Sendable {
             guard sampleType == .video, CMSampleBufferIsValid(sampleBuffer) else { return }
             guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
 
-            let timeStamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-            let ciImage = CIImage(cvImageBuffer: imageBuffer)
-            let context = CIContext()
+            RemoteMediaSession.shared.recordCapturedFrame()
 
-            if let cgImage = context.createCGImage(ciImage, from: ciImage.extent) {
-                let uiImage = UIImage(cgImage: cgImage)
-                if let jpegData = uiImage.jpegData(compressionQuality: 0.6) {
+            self.lock.lock()
+            if self.isCompressing {
+                self.lock.unlock()
+                return
+            }
+            self.isCompressing = true
+            self.lock.unlock()
+
+            let timeStamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
+
+            autoreleasepool {
+                let ciImage = CIImage(cvPixelBuffer: imageBuffer)
+                let options: [CIImageRepresentationOption: Any] = [
+                    CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String): 0.6
+                ]
+
+                if let jpegData = self.ciContext.jpegRepresentation(of: ciImage, colorSpace: self.srgbColorSpace, options: options) {
                     self.onFrameCaptured?(jpegData, timeStamp)
                 }
             }
+
+            self.lock.lock()
+            self.isCompressing = false
+            self.lock.unlock()
         }, completionHandler: { [weak self] error in
             guard let self = self else { return }
             self.lock.lock()

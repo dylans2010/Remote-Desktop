@@ -62,6 +62,11 @@ public final class BonjourDiscoveryManager: @unchecked Sendable {
                 }
             }
 
+            listener?.newConnectionHandler = { newConnection in
+                print("[Bonjour] Incoming connection received on listener")
+                RemoteSessionManager.shared.handleIncomingConnection(newConnection)
+            }
+
             listener?.start(queue: .global(qos: .userInitiated))
         } catch {
             print("[Bonjour] Failed to initialize NWListener: \(error)")

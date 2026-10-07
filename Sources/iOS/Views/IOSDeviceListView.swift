@@ -105,10 +105,14 @@ public struct IOSDeviceListView: View {
 public struct IOSDeviceDetailView: View {
     let device: Device
     var onConnect: () -> Void
+    @State private var defaultPermissions: RemoteSessionPermissions
+    @State private var isTrusted: Bool
 
     public init(device: Device, onConnect: @escaping () -> Void) {
         self.device = device
         self.onConnect = onConnect
+        self._defaultPermissions = State(initialValue: TrustModel.shared.defaultPermissions(for: device.id))
+        self._isTrusted = State(initialValue: TrustModel.shared.isTrusted(deviceID: device.id))
     }
 
     public var body: some View {
@@ -119,46 +123,33 @@ public struct IOSDeviceDetailView: View {
                     .foregroundColor(.blue)
                     .padding(.top, 20)
 
-                Text(device.name)
-                    .font(.title)
-                    .bold()
+                VStack(spacing: 4) {
+                    Text(device.name)
+                        .font(.title)
+                        .bold()
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Remote Capabilities")
-                        .font(.headline)
-
-                    HStack {
-                        Label("Screen Viewing", systemImage: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Spacer()
-                        Text("Supported")
-                            .foregroundColor(.secondary)
-                    }
-
-                    HStack {
-                        Label("Remote Control", systemImage: device.platform == .macOS ? "checkmark.circle.fill" : "xmark.circle")
-                            .foregroundColor(device.platform == .macOS ? .green : .gray)
-                        Spacer()
-                        Text(device.platform == .macOS ? "Supported" : "Unavailable on iOS")
+                    HStack(spacing: 6) {
+                        Image(systemName: isTrusted ? "checkmark.shield.fill" : "shield.slash")
+                            .foregroundColor(isTrusted ? .green : .secondary)
+                        Text(isTrusted ? "Trusted Device" : "Untrusted Device")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+                }
 
-                    HStack {
-                        Label("Clipboard Sync", systemImage: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Spacer()
-                        Text("Supported")
-                            .foregroundColor(.secondary)
-                    }
+                // Default Access Settings
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Default Permissions")
+                        .font(.headline)
 
-                    HStack {
-                        Label("File Transfer", systemImage: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Spacer()
-                        Text("Supported")
-                            .foregroundColor(.secondary)
-                    }
+                    Toggle("Screen Viewing", isOn: $defaultPermissions.viewScreen)
+                        .disabled(true)
+
+                    Toggle("Annotations", isOn: $defaultPermissions.annotation)
+                        .onChange(of: defaultPermissions.annotation) { _, _ in saveDefaults() }
+
+                    Toggle("Clipboard Sync", isOn: $defaultPermissions.clipboard)
+                        .onChange(of: defaultPermissions.clipboard) { _, _ in saveDefaults() }
                 }
                 .padding()
                 .background(Color(UIColor.secondarySystemBackground))
@@ -166,7 +157,7 @@ public struct IOSDeviceDetailView: View {
                 .padding(.horizontal)
 
                 Button(action: onConnect) {
-                    Text("Connect to \(device.name)")
+                    Text("Start Session with \(device.name)")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -176,9 +167,28 @@ public struct IOSDeviceDetailView: View {
                 }
                 .disabled(device.onlineState != .online)
                 .padding(.horizontal)
+
+                if isTrusted {
+                    Button(role: .destructive, action: {
+                        TrustModel.shared.revokeDevice(deviceID: device.id)
+                        isTrusted = false
+                    }) {
+                        Text("Revoke Trust")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.red.opacity(0.1))
+                            .foregroundColor(.red)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                }
             }
         }
         .navigationTitle(device.name)
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func saveDefaults() {
+        TrustModel.shared.updateDefaultPermissions(for: device.id, permissions: defaultPermissions)
     }
 }

@@ -15,6 +15,11 @@ public enum ProtocolMessageType: String, Codable, Sendable {
     case sessionRequest
     case sessionAccepted
     case sessionRejected
+    case connectionRequest
+    case connectionResponse
+    case permissionUpdate
+    case permissionRevoked
+    case annotation
     case inputEvent
     case clipboardSync
     case fileOffer
@@ -25,6 +30,9 @@ public enum ProtocolMessageType: String, Codable, Sendable {
     case ping
     case pong
     case disconnect
+    case disconnectRequest
+    case disconnectAck
+    case sessionEnded
 }
 
 /// Strongly-typed payload for Remote Input events.
@@ -136,3 +144,88 @@ public struct ProtocolEngine {
         return msg
     }
 }
+
+// MARK: - Negotiation & Handshake Payloads
+
+/// Payload for incoming session connection requests from a controller to a host.
+public struct ConnectionRequestPayload: Codable, Sendable {
+    public let requesterID: String
+    public let requesterName: String
+    public let requesterPlatform: DevicePlatform
+    public let requestedPermissions: RemoteSessionPermissions
+    public let capabilities: RemoteCapabilities
+
+    public init(
+        requesterID: String,
+        requesterName: String,
+        requesterPlatform: DevicePlatform,
+        requestedPermissions: RemoteSessionPermissions,
+        capabilities: RemoteCapabilities
+    ) {
+        self.requesterID = requesterID
+        self.requesterName = requesterName
+        self.requesterPlatform = requesterPlatform
+        self.requestedPermissions = requestedPermissions
+        self.capabilities = capabilities
+    }
+}
+
+/// Payload response from host accepting or rejecting a connection request.
+public struct ConnectionResponsePayload: Codable, Sendable {
+    public let approved: Bool
+    public let hostID: String
+    public let hostName: String
+    public let grantedPermissions: RemoteSessionPermissions
+    public let hostCapabilities: RemoteCapabilities
+    public let rejectionReason: String?
+
+    public init(
+        approved: Bool,
+        hostID: String,
+        hostName: String,
+        grantedPermissions: RemoteSessionPermissions,
+        hostCapabilities: RemoteCapabilities,
+        rejectionReason: String? = nil
+    ) {
+        self.approved = approved
+        self.hostID = hostID
+        self.hostName = hostName
+        self.grantedPermissions = grantedPermissions
+        self.hostCapabilities = hostCapabilities
+        self.rejectionReason = rejectionReason
+    }
+}
+
+/// Payload sent by host to dynamically update permissions during an active session.
+public struct PermissionUpdatePayload: Codable, Sendable {
+    public let updatedPermissions: RemoteSessionPermissions
+    public let reason: String?
+
+    public init(updatedPermissions: RemoteSessionPermissions, reason: String? = nil) {
+        self.updatedPermissions = updatedPermissions
+        self.reason = reason
+    }
+}
+
+/// Payload for orderly disconnect requests.
+public struct DisconnectPayload: Codable, Sendable {
+    public let reason: String
+    public let requestedBy: String
+
+    public init(reason: String = "User requested disconnect", requestedBy: String) {
+        self.reason = reason
+        self.requestedBy = requestedBy
+    }
+}
+
+/// Payload notifying that a session has ended.
+public struct SessionEndedPayload: Codable, Sendable {
+    public let reason: String
+    public let endedByHost: Bool
+
+    public init(reason: String, endedByHost: Bool) {
+        self.reason = reason
+        self.endedByHost = endedByHost
+    }
+}
+

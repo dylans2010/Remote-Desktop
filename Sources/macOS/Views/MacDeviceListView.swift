@@ -94,71 +94,96 @@ public struct MacDeviceListView: View {
 public struct MacDeviceDetailView: View {
     let device: Device
     var onConnect: () -> Void
+    @State private var defaultPermissions: RemoteSessionPermissions
+    @State private var isTrusted: Bool
 
     public init(device: Device, onConnect: @escaping () -> Void) {
         self.device = device
         self.onConnect = onConnect
+        self._defaultPermissions = State(initialValue: TrustModel.shared.defaultPermissions(for: device.id))
+        self._isTrusted = State(initialValue: TrustModel.shared.isTrusted(deviceID: device.id))
     }
 
     public var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: device.platform == .macOS ? "macbook" : "iphone")
-                .font(.system(size: 64))
-                .foregroundColor(.blue)
+        ScrollView {
+            VStack(spacing: 20) {
+                Image(systemName: device.platform == .macOS ? "macbook" : "iphone")
+                    .font(.system(size: 64))
+                    .foregroundColor(.blue)
 
-            Text(device.name)
-                .font(.largeTitle)
-                .bold()
+                VStack(spacing: 4) {
+                    Text(device.name)
+                        .font(.largeTitle)
+                        .bold()
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Device Capabilities")
-                    .font(.headline)
-
-                HStack {
-                    Label("Screen Sharing", systemImage: device.capabilities.screenViewing ? "checkmark.circle.fill" : "xmark.circle")
-                        .foregroundColor(device.capabilities.screenViewing ? .green : .gray)
-                    Spacer()
-                    Text(device.capabilities.screenViewing ? "Available" : "Unavailable")
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 6) {
+                        Image(systemName: isTrusted ? "checkmark.shield.fill" : "shield.slash")
+                            .foregroundColor(isTrusted ? .green : .secondary)
+                        Text(isTrusted ? "Trusted Device" : "Untrusted Device")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
 
-                HStack {
-                    Label("Remote Control", systemImage: device.capabilities.remoteControl ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .foregroundColor(device.capabilities.remoteControl ? .green : .orange)
-                    Spacer()
-                    Text(device.capabilities.remoteControl ? "Available" : "Requires Accessibility")
-                        .foregroundColor(.secondary)
-                }
+                // Default Access Settings (Req 37 & 38)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Default Access Permissions")
+                        .font(.headline)
 
-                HStack {
-                    Label("Clipboard Sync", systemImage: device.capabilities.clipboard ? "checkmark.circle.fill" : "xmark.circle")
-                        .foregroundColor(device.capabilities.clipboard ? .green : .gray)
-                    Spacer()
-                    Text(device.capabilities.clipboard ? "Supported" : "Disabled")
-                        .foregroundColor(.secondary)
-                }
+                    Toggle("Screen Viewing", isOn: $defaultPermissions.viewScreen)
+                        .disabled(true)
 
-                HStack {
-                    Label("File Transfer", systemImage: device.capabilities.fileTransfer ? "checkmark.circle.fill" : "xmark.circle")
-                        .foregroundColor(device.capabilities.fileTransfer ? .green : .gray)
-                    Spacer()
-                    Text(device.capabilities.fileTransfer ? "Supported" : "Disabled")
-                        .foregroundColor(.secondary)
+                    Toggle("Remote Mouse Control", isOn: $defaultPermissions.mouse)
+                        .onChange(of: defaultPermissions.mouse) { _, val in
+                            if val { defaultPermissions.controlScreen = true }
+                            saveDefaults()
+                        }
+
+                    Toggle("Remote Keyboard Control", isOn: $defaultPermissions.keyboard)
+                        .onChange(of: defaultPermissions.keyboard) { _, val in
+                            if val { defaultPermissions.controlScreen = true }
+                            saveDefaults()
+                        }
+
+                    Toggle("Annotations & Drawing", isOn: $defaultPermissions.annotation)
+                        .onChange(of: defaultPermissions.annotation) { _, _ in saveDefaults() }
+
+                    Toggle("Clipboard Synchronization", isOn: $defaultPermissions.clipboard)
+                        .onChange(of: defaultPermissions.clipboard) { _, _ in saveDefaults() }
+
+                    Toggle("File Transfer", isOn: $defaultPermissions.fileTransfer)
+                        .onChange(of: defaultPermissions.fileTransfer) { _, _ in saveDefaults() }
+                }
+                .padding()
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(10)
+                .frame(maxWidth: 420)
+
+                HStack(spacing: 16) {
+                    Button("Start Session with \(device.name)") {
+                        onConnect()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(device.onlineState != .online)
+
+                    if isTrusted {
+                        Button("Revoke Trust") {
+                            TrustModel.shared.revokeDevice(deviceID: device.id)
+                            isTrusted = false
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                        .foregroundColor(.red)
+                    }
                 }
             }
-            .padding()
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(10)
-            .frame(maxWidth: 380)
-
-            Button("Start Session with \(device.name)") {
-                onConnect()
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(device.onlineState != .online)
+            .padding(24)
+            .frame(maxWidth: .infinity)
         }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func saveDefaults() {
+        TrustModel.shared.updateDefaultPermissions(for: device.id, permissions: defaultPermissions)
     }
 }

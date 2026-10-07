@@ -1,6 +1,8 @@
 import Foundation
 import CoreGraphics
 import ScreenCaptureKit
+import CoreImage
+import ImageIO
 
 /// Display information for local system displays.
 public struct DisplayInfo: Identifiable, Codable, Sendable {
@@ -37,70 +39,104 @@ public struct FrameCaptureConfig: Sendable {
 /// Callback protocol for captured screen frames.
 public protocol FrameCaptureDelegate: AnyObject {
     func frameCaptureEngine(_ engine: ScreenCaptureEngine, didCaptureFrame frameData: Data, timestamp: Double)
+    func frameCaptureEngineDidFail(_ engine: ScreenCaptureEngine, error: Error)
 }
 
-/// Screen capture engine for macOS using ScreenCaptureKit.
+/// High-performance ScreenCaptureKit capture engine for macOS with GPU-accelerated frame compression and pacing.
 public final class ScreenCaptureEngine: NSObject, SCStreamOutput, @unchecked Sendable {
     public weak var delegate: FrameCaptureDelegate?
 
     private var stream: SCStream?
-    private var isCapturing: Bool = false
+    private(set) public var isCapturing: Bool = false
     private let lock = NSLock()
 
-    private func withStateLock<T>(_ block: () -> T) -> T {
-        lock.lock()
-        defer { lock.unlock() }
-        return block()
-    }
+    // Reusable GPU Metal-accelerated CoreImage context (allocated once)
+    private let ciContext = CIContext(options: [
+        .useSoftwareRenderer: false,
+        .cacheIntermediates: false
+    ])
+    private let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+
+    // Frame pacing flag to prevent buffer accumulation
+    private var isCompressing = false
 
     public override init() {
         super.init()
     }
 
+    /// Retrieve list of active system displays via ScreenCaptureKit.
+    public static func availableDisplays() async throws -> [DisplayInfo] {
+        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        return content.displays.map { display in
+            DisplayInfo(
+                id: display.displayID,
+                name: "Display \(display.displayID)",
+                width: display.width,
+                height: display.height,
+                isMain: display.displayID == CGMainDisplayID()
+            )
+        }
+    }
+
     /// Start capturing display stream using ScreenCaptureKit.
     public func startCapture(config: FrameCaptureConfig = FrameCaptureConfig()) async throws {
         guard ScreenRecordingPermissionManager.shared.isAuthorized else {
-            throw NSError(domain: "RemoteDesktopCapture", code: 401, userInfo: [
+            let error = NSError(domain: "RemoteDesktopCapture", code: 401, userInfo: [
                 NSLocalizedDescriptionKey: "Screen Recording permission not authorized."
             ])
+            delegate?.frameCaptureEngineDidFail(self, error: error)
+            throw error
         }
 
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let display = content.displays.first(where: { $0.displayID == (config.selectedDisplayID ?? CGMainDisplayID()) }) ?? content.displays.first else {
-            throw NSError(domain: "RemoteDesktopCapture", code: 404, userInfo: [
+            let error = NSError(domain: "RemoteDesktopCapture", code: 404, userInfo: [
                 NSLocalizedDescriptionKey: "No active display found for ScreenCaptureKit."
             ])
+            delegate?.frameCaptureEngineDidFail(self, error: error)
+            throw error
         }
 
         let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
         let streamConfig = SCStreamConfiguration()
-        streamConfig.width = config.targetWidth
-        streamConfig.height = config.targetHeight
+        streamConfig.width = min(config.targetWidth, display.width)
+        streamConfig.height = min(config.targetHeight, display.height)
         streamConfig.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(config.frameRate))
-        streamConfig.queueDepth = 5
+        streamConfig.queueDepth = 3
         streamConfig.showsCursor = true
+        streamConfig.pixelFormat = kCVPixelFormatType_32BGRA
 
         let newStream = SCStream(filter: filter, configuration: streamConfig, delegate: nil)
         try newStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue.global(qos: .userInteractive))
         try await newStream.startCapture()
 
-        withStateLock {
-            self.stream = newStream
-            self.isCapturing = true
-        }
+        setStreamActive(newStream)
+
+        print("[ScreenCaptureEngine] ScreenCaptureKit streaming active at \(streamConfig.width)x\(streamConfig.height) @ \(config.frameRate)fps")
     }
 
-    /// Stop capture stream.
-    public func stopCapture() async throws {
-        let activeStream = withStateLock { () -> SCStream? in
-            let s = self.stream
-            self.stream = nil
-            self.isCapturing = false
-            return s
-        }
+    private func setStreamActive(_ stream: SCStream) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.stream = stream
+        self.isCapturing = true
+    }
 
+    private func clearStream() -> SCStream? {
+        lock.lock()
+        defer { lock.unlock() }
+        let activeStream = self.stream
+        self.stream = nil
+        self.isCapturing = false
+        return activeStream
+    }
+
+    /// Stop capture stream cleanly.
+    public func stopCapture() async throws {
+        let activeStream = clearStream()
         if let activeStream = activeStream {
             try await activeStream.stopCapture()
+            print("[ScreenCaptureEngine] ScreenCaptureKit stream stopped")
         }
     }
 
@@ -110,17 +146,33 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, @unchecked Sen
         guard type == .screen, CMSampleBufferIsValid(sampleBuffer) else { return }
         guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
 
-        let timeStamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-        let ciImage = CIImage(cvImageBuffer: imageBuffer)
-        let context = CIContext()
+        // Track frame captured in media health telemetry
+        RemoteMediaSession.shared.recordCapturedFrame()
 
-        if let cgImage = context.createCGImage(ciImage, from: ciImage.extent) {
-            let nsImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-            if let tiffData = nsImage.tiffRepresentation,
-               let bitmapRep = NSBitmapImageRep(data: tiffData),
-               let jpegData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) {
+        // Frame pacing: drop this frame if previous frame is still compressing to ensure zero lag
+        lock.lock()
+        if isCompressing {
+            lock.unlock()
+            return
+        }
+        isCompressing = true
+        lock.unlock()
+
+        let timeStamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
+
+        autoreleasepool {
+            let ciImage = CIImage(cvPixelBuffer: imageBuffer)
+            let options: [CIImageRepresentationOption: Any] = [
+                CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String): 0.65
+            ]
+
+            if let jpegData = ciContext.jpegRepresentation(of: ciImage, colorSpace: srgbColorSpace, options: options) {
                 delegate?.frameCaptureEngine(self, didCaptureFrame: jpegData, timestamp: timeStamp)
             }
         }
+
+        lock.lock()
+        isCompressing = false
+        lock.unlock()
     }
 }

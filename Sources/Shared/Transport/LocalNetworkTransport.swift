@@ -1,15 +1,21 @@
 import Foundation
 import Network
 
-/// Concrete connection transport implementation using Network.framework NWConnection / NWListener for direct LAN & TCP peer connection.
+/// Concrete connection transport implementation using Network.framework NWConnection
+/// Supporting both client outgoing connections and server-accepted incoming peer connections.
 public final class LocalNetworkTransport: ConnectionTransport, @unchecked Sendable {
     public private(set) var state: TransportConnectionState = .disconnected
     public private(set) var transportMode: TransportMode = .localLAN
     public weak var delegate: ConnectionTransportDelegate?
 
     private var connection: NWConnection?
-    private var listener: NWListener?
     private let lock = NSLock()
+    private var receivedBuffer = Data()
+    private var isReceiving = false
+
+    // Packet type tags
+    private static let tagProtocolMessage: UInt8 = 0x01
+    private static let tagMediaFrame: UInt8 = 0x02
 
     private func withStateLock<T>(_ block: () -> T) -> T {
         lock.lock()
@@ -17,8 +23,16 @@ public final class LocalNetworkTransport: ConnectionTransport, @unchecked Sendab
         return block()
     }
 
+    /// Client initializer for connecting out to a peer.
     public init() {}
 
+    /// Server initializer for wrapping an incoming accepted NWConnection.
+    public init(acceptedConnection: NWConnection) {
+        self.connection = acceptedConnection
+        setupConnection(acceptedConnection)
+    }
+
+    /// Connect out to a remote peer device over TCP.
     public func connect(to peer: Device) async throws {
         withStateLock {
             state = .connecting
@@ -41,6 +55,11 @@ public final class LocalNetworkTransport: ConnectionTransport, @unchecked Sendab
             self.connection = nwConn
         }
 
+        setupConnection(nwConn)
+    }
+
+    /// Configures state handler and starts receiving from connection.
+    private func setupConnection(_ nwConn: NWConnection) {
         nwConn.stateUpdateHandler = { [weak self] connState in
             guard let self = self else { return }
             self.lock.lock()
@@ -50,7 +69,7 @@ public final class LocalNetworkTransport: ConnectionTransport, @unchecked Sendab
             case .ready:
                 self.state = .connected
                 self.delegate?.transport(self, didChangeState: .connected)
-                self.receiveNextMessage()
+                self.startReceivingLoop()
             case .failed(let err):
                 self.state = .failed
                 self.delegate?.transport(self, didFailWithError: err)
@@ -62,60 +81,168 @@ public final class LocalNetworkTransport: ConnectionTransport, @unchecked Sendab
             }
         }
 
-        nwConn.start(queue: .global(qos: .userInitiated))
+        nwConn.start(queue: .global(qos: .userInteractive))
     }
 
+    // MARK: - Message Transmission
+
+    /// Send a structured protocol message (encoded with 0x01 tag).
     public func sendMessage(_ message: ProtocolMessage) async throws {
-        let data = try ProtocolEngine.encode(message)
+        let msgData = try ProtocolEngine.encode(message)
         let conn = withStateLock { connection }
 
         guard let conn = conn, state == .connected else {
             throw NSError(domain: "LocalNetworkTransport", code: 500, userInfo: [NSLocalizedDescriptionKey: "Transport not connected"])
         }
 
-        var length = UInt32(data.count).bigEndian
-        var payload = Data(bytes: &length, count: 4)
-        payload.append(data)
+        let packetPayloadLength = 1 + msgData.count
+        var lengthBigEndian = UInt32(packetPayloadLength).bigEndian
+        var packetData = Data(bytes: &lengthBigEndian, count: 4)
+        packetData.append(LocalNetworkTransport.tagProtocolMessage)
+        packetData.append(msgData)
 
-        conn.send(content: payload, completion: .contentProcessed({ error in
-            if let error = error {
-                print("[LocalNetworkTransport] Send error: \(error)")
-            }
-        }))
+        try await sendData(packetData, on: conn)
     }
 
+    /// Send raw video frame directly as binary payload (encoded with 0x02 tag, zero JSON overhead).
     public func sendMediaFrame(_ frameData: Data, timestamp: Double) async throws {
-        let frameMsg = ProtocolMessage(type: .sessionOffer, senderID: "media", payload: frameData)
-        try await sendMessage(frameMsg)
+        let conn = withStateLock { connection }
+        guard let conn = conn, state == .connected else {
+            throw NSError(domain: "LocalNetworkTransport", code: 500, userInfo: [NSLocalizedDescriptionKey: "Transport not connected"])
+        }
+
+        var timestampBits = timestamp.bitPattern.bigEndian
+        let timestampData = Data(bytes: &timestampBits, count: 8)
+
+        let packetPayloadLength = 1 + 8 + frameData.count
+        var lengthBigEndian = UInt32(packetPayloadLength).bigEndian
+
+        var packetData = Data(capacity: 4 + packetPayloadLength)
+        packetData.append(Data(bytes: &lengthBigEndian, count: 4))
+        packetData.append(LocalNetworkTransport.tagMediaFrame)
+        packetData.append(timestampData)
+        packetData.append(frameData)
+
+        try await sendData(packetData, on: conn)
     }
+
+    private func sendData(_ data: Data, on conn: NWConnection) async throws {
+        return try await withCheckedThrowingContinuation { continuation in
+            conn.send(content: data, completion: .contentProcessed { error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            })
+        }
+    }
+
+    // MARK: - Message Reception & Stream Buffer
+
+    private func startReceivingLoop() {
+        lock.lock()
+        guard !isReceiving else {
+            lock.unlock()
+            return
+        }
+        isReceiving = true
+        let conn = connection
+        lock.unlock()
+
+        readMore(from: conn)
+    }
+
+    private func readMore(from conn: NWConnection?) {
+        guard let conn = conn else { return }
+
+        conn.receive(minimumIncompleteLength: 1, maximumLength: 131072) { [weak self] content, _, isComplete, error in
+            guard let self = self else { return }
+
+            if let data = content, !data.isEmpty {
+                self.processIncomingBytes(data)
+            }
+
+            if let error = error {
+                self.lock.lock()
+                self.state = .failed
+                self.delegate?.transport(self, didFailWithError: error)
+                self.lock.unlock()
+                return
+            }
+
+            if isComplete {
+                self.lock.lock()
+                self.state = .disconnected
+                self.delegate?.transport(self, didChangeState: .disconnected)
+                self.lock.unlock()
+                return
+            }
+
+            self.readMore(from: conn)
+        }
+    }
+
+    /// Reassembles variable-length packets from TCP stream buffer.
+    private func processIncomingBytes(_ data: Data) {
+        lock.lock()
+        receivedBuffer.append(data)
+
+        while receivedBuffer.count >= 4 {
+            let payloadLength = receivedBuffer.prefix(4).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+            let totalPacketSize = 4 + Int(payloadLength)
+
+            guard receivedBuffer.count >= totalPacketSize else {
+                // Incomplete packet in buffer; wait for remaining bytes from network
+                break
+            }
+
+            let packetData = receivedBuffer.subdata(in: 4..<totalPacketSize)
+            receivedBuffer.removeSubrange(0..<totalPacketSize)
+            lock.unlock()
+
+            dispatchPacket(packetData)
+
+            lock.lock()
+        }
+        lock.unlock()
+    }
+
+    private func dispatchPacket(_ data: Data) {
+        guard !data.isEmpty else { return }
+        let tag = data[0]
+        let payload = data.dropFirst()
+
+        switch tag {
+        case LocalNetworkTransport.tagProtocolMessage:
+            if let message = try? ProtocolEngine.decode(Data(payload)) {
+                delegate?.transport(self, didReceiveMessage: message)
+            }
+        case LocalNetworkTransport.tagMediaFrame:
+            guard payload.count >= 8 else { return }
+            let timestampData = payload.prefix(8)
+            let frameData = payload.dropFirst(8)
+
+            let timestampBits = timestampData.withUnsafeBytes { $0.load(as: UInt64.self).bigEndian }
+            let timestamp = Double(bitPattern: timestampBits)
+
+            delegate?.transport(self, didReceiveMediaFrame: Data(frameData), timestamp: timestamp)
+        default:
+            print("[LocalNetworkTransport] Unknown packet tag: \(tag)")
+        }
+    }
+
+    // MARK: - Teardown
 
     public func disconnect() {
         lock.lock()
         defer { lock.unlock() }
 
+        isReceiving = false
+        receivedBuffer.removeAll()
         connection?.cancel()
         connection = nil
-        listener?.cancel()
-        listener = nil
         state = .disconnected
         delegate?.transport(self, didChangeState: .disconnected)
-    }
-
-    private func receiveNextMessage() {
-        lock.lock()
-        let conn = connection
-        lock.unlock()
-
-        conn?.receive(minimumIncompleteLength: 4, maximumLength: 4) { [weak self] content, _, isComplete, error in
-            guard let self = self, let lengthData = content, lengthData.count == 4 else { return }
-
-            let length = lengthData.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-            conn?.receive(minimumIncompleteLength: Int(length), maximumLength: Int(length)) { payloadData, _, _, _ in
-                if let data = payloadData, let msg = try? ProtocolEngine.decode(data) {
-                    self.delegate?.transport(self, didReceiveMessage: msg)
-                }
-                self.receiveNextMessage()
-            }
-        }
     }
 }

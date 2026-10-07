@@ -4,16 +4,26 @@ public struct MacContentView: View {
     @State private var selectedDevice: Device? = nil
     @State private var discoveredDevices: [Device] = []
     @State private var isPairingModalPresented: Bool = false
-    @State private var activeSessionViewModel: MacSessionViewModel? = nil
-    @State private var incomingRequestPeer: Device? = nil
+    @State private var activeControllerViewModel: MacSessionViewModel? = nil
+    @State private var activeHostViewModel: MacHostSessionViewModel? = nil
+
+    // Pending incoming request state
+    @State private var pendingIncomingRequester: Device? = nil
+    @State private var pendingRequestedPermissions: RemoteSessionPermissions = .standardDefault
+    @State private var pendingDecisionCallback: ((Bool, RemoteSessionPermissions) -> Void)? = nil
 
     public init() {}
 
     public var body: some View {
         Group {
-            if let sessionVM = activeSessionViewModel {
-                MacSessionViewerView(viewModel: sessionVM)
+            if let controllerVM = activeControllerViewModel {
+                // View 1: CONTROLLER VIEW (Viewer looking at remote machine)
+                MacSessionViewerView(viewModel: controllerVM)
+            } else if let hostVM = activeHostViewModel {
+                // View 2: HOST VIEW (This machine being viewed/controlled)
+                MacHostSessionView(viewModel: hostVM)
             } else {
+                // View 3: IDLE DEVICE MANAGEMENT
                 NavigationSplitView {
                     MacDeviceListView(
                         selectedDevice: $selectedDevice,
@@ -53,18 +63,43 @@ public struct MacContentView: View {
                 }
             }
         }
-        .onAppear {
-            setupBonjourDiscovery()
-            HostModeManager.shared.onRequestIncomingConnection = { peer, completion in
-                self.incomingRequestPeer = peer
-                // Handle alert/approval prompt
-                completion(true)
+        .sheet(isPresented: Binding(
+            get: { pendingIncomingRequester != nil },
+            set: { if !$0 { pendingIncomingRequester = nil } }
+        )) {
+            if let requester = pendingIncomingRequester {
+                MacIncomingRequestSheet(
+                    requester: requester,
+                    initialPermissions: pendingRequestedPermissions
+                ) { approved, grantedPermissions in
+                    pendingIncomingRequester = nil
+                    pendingDecisionCallback?(approved, grantedPermissions)
+                    pendingDecisionCallback = nil
+
+                    if approved {
+                        let hostVM = MacHostSessionViewModel(
+                            peerName: requester.name,
+                            initialPermissions: grantedPermissions
+                        )
+                        hostVM.onSessionStopped = {
+                            DispatchQueue.main.async {
+                                self.activeHostViewModel = nil
+                            }
+                        }
+                        self.activeHostViewModel = hostVM
+                    }
+                }
             }
+        }
+        .onAppear {
+            MacNotificationManager.shared.requestAuthorization()
+            setupBonjourDiscovery()
+            setupIncomingApprovalHandler()
         }
     }
 
     private func setupBonjourDiscovery() {
-        let localIdentity = DeviceIdentity(deviceName: Host.current().localizedName ?? "Mac")
+        let localIdentity = DeviceIdentity(deviceName: HostModeManager.hostDeviceName())
         BonjourDiscoveryManager.shared.startAdvertising(identity: localIdentity)
         BonjourDiscoveryManager.shared.startBrowsing { devices in
             DispatchQueue.main.async {
@@ -73,30 +108,42 @@ public struct MacContentView: View {
         }
     }
 
-    private func connectToDevice(_ device: Device) {
-        // If connecting to another device (e.g. iOS or Mac) as viewer, permission is optional;
-        // only request if local screen recording is required for hosting
-        if device.platform == .macOS && !ScreenRecordingPermissionManager.shared.isAuthorized {
-            ScreenRecordingPermissionManager.shared.requestPermission()
-        }
+    private func setupIncomingApprovalHandler() {
+        RemoteSessionManager.shared.incomingApprovalHandler = { requester, requestedPermissions, decisionCallback in
+            DispatchQueue.main.async {
+                self.pendingIncomingRequester = requester
+                self.pendingRequestedPermissions = requestedPermissions
+                self.pendingDecisionCallback = decisionCallback
 
+                let permSummary = requestedPermissions.controlScreen ? "View screen & control input" : "View screen only"
+                MacNotificationManager.shared.notifyIncomingConnection(
+                    peerName: requester.name,
+                    permissionsDescription: permSummary
+                )
+            }
+        }
+    }
+
+    private func connectToDevice(_ device: Device) {
         let sessionVM = MacSessionViewModel(peerName: device.name)
         sessionVM.onDisconnect = { [weak sessionVM] in
             DispatchQueue.main.async {
-                if self.activeSessionViewModel === sessionVM {
-                    self.activeSessionViewModel = nil
+                if self.activeControllerViewModel === sessionVM {
+                    self.activeControllerViewModel = nil
                 }
             }
         }
-        self.activeSessionViewModel = sessionVM
+        self.activeControllerViewModel = sessionVM
+
+        let initialPermissions = TrustModel.shared.defaultPermissions(for: device.id)
 
         Task {
             do {
-                try await RemoteSessionManager.shared.startSession(with: device)
+                try await RemoteSessionManager.shared.startSession(with: device, requestedPermissions: initialPermissions)
             } catch {
                 print("[MacContentView] Failed to connect: \(error)")
                 DispatchQueue.main.async {
-                    self.activeSessionViewModel = nil
+                    self.activeControllerViewModel = nil
                 }
             }
         }

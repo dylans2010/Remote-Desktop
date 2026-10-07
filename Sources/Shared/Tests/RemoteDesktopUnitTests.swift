@@ -1,6 +1,6 @@
 import Foundation
 
-/// Unit tests verifying DeviceIdentity cryptographic signatures and Keychain storage.
+/// Unit and integration tests verifying DeviceIdentity, ProtocolEngine, Permissions, SessionState, Annotations, and Diagnostics.
 public final class RemoteDesktopUnitTests {
     public static func runAllTests() -> Bool {
         print("======== Running Remote Desktop Unit & Integration Test Suite ========")
@@ -11,6 +11,11 @@ public final class RemoteDesktopUnitTests {
         passed = passed && testPairingManager()
         passed = passed && testCoordinateMapping()
         passed = passed && testFileTransferChunking()
+        passed = passed && testSessionStateMachine()
+        passed = passed && testRemoteSessionPermissions()
+        passed = passed && testMediaPipelineDiagnostics()
+        passed = passed && testAnnotationModel()
+        passed = passed && testConnectionHandshakePayloads()
 
         print("======== Test Suite Result: \(passed ? "ALL PASSED" : "FAILED") ========")
         return passed
@@ -116,5 +121,168 @@ public final class RemoteDesktopUnitTests {
             print("❌ Chunk count mismatch")
             return false
         }
+    }
+
+    private static func testSessionStateMachine() -> Bool {
+        print("[TEST] SessionState state machine properties...")
+        let activeStates: [SessionState] = [.requestingPermission, .awaitingApproval, .negotiating, .connecting, .establishingMedia, .connected, .reconnecting]
+        for state in activeStates {
+            guard state.isActive else {
+                print("❌ State \(state) expected to be active")
+                return false
+            }
+        }
+
+        guard SessionState.connected.isLiveMediaActive else {
+            print("❌ Connected state expected to have live media active")
+            return false
+        }
+
+        guard SessionState.idle.isActive == false && SessionState.disconnected.isActive == false else {
+            print("❌ Idle/disconnected states should not be active")
+            return false
+        }
+
+        guard SessionState.permissionDenied.isTerminal && SessionState.transportFailed.isTerminal else {
+            print("❌ Failure states must be terminal")
+            return false
+        }
+
+        print("✅ SessionState state machine test passed")
+        return true
+    }
+
+    private static func testRemoteSessionPermissions() -> Bool {
+        print("[TEST] RemoteSessionPermissions presets and enforcement...")
+        let viewOnly = RemoteSessionPermissions.viewOnly
+        guard viewOnly.viewScreen && !viewOnly.controlScreen && !viewOnly.mouse && !viewOnly.keyboard && !viewOnly.annotation else {
+            print("❌ View Only permissions preset invalid")
+            return false
+        }
+        guard !viewOnly.isInputAuthorized(for: .mouseMove) && !viewOnly.isInputAuthorized(for: .keyDown) else {
+            print("❌ View Only must reject mouse and keyboard input")
+            return false
+        }
+
+        let teaching = RemoteSessionPermissions.teaching
+        guard teaching.viewScreen && teaching.isAnnotationAuthorized && !teaching.controlScreen && !teaching.mouse else {
+            print("❌ Teaching permissions preset invalid")
+            return false
+        }
+
+        let fullControl = RemoteSessionPermissions.fullControl
+        guard fullControl.viewScreen && fullControl.controlScreen && fullControl.isInputAuthorized(for: .mouseMove) && fullControl.isInputAuthorized(for: .keyDown) && fullControl.isAnnotationAuthorized else {
+            print("❌ Full control permissions preset invalid")
+            return false
+        }
+
+        print("✅ RemoteSessionPermissions test passed")
+        return true
+    }
+
+    private static func testMediaPipelineDiagnostics() -> Bool {
+        print("[TEST] MediaHealthMetrics pipeline diagnostics...")
+        // Test Host perspective: frames captured = 0 -> capture issue
+        let hostCaptureIssue = MediaHealthMetrics(framesCaptured: 0, framesEncoded: 0, framesSent: 0)
+        guard hostCaptureIssue.diagnosePipeline(isHost: true) == .capture else {
+            print("❌ Expected capture diagnosis for zero captured frames")
+            return false
+        }
+
+        // Test Host perspective: captured > 0, encoded = 0 -> encoding issue
+        let hostEncodeIssue = MediaHealthMetrics(framesCaptured: 10, framesEncoded: 0, framesSent: 0)
+        guard hostEncodeIssue.diagnosePipeline(isHost: true) == .encoding else {
+            print("❌ Expected encoding diagnosis")
+            return false
+        }
+
+        // Test Controller perspective: frames received = 0 -> reception issue
+        let controllerReceptionIssue = MediaHealthMetrics(framesReceived: 0, framesDecoded: 0, framesRendered: 0)
+        guard controllerReceptionIssue.diagnosePipeline(isHost: false) == .reception else {
+            print("❌ Expected reception diagnosis for zero received frames")
+            return false
+        }
+
+        // Test Controller perspective: frames received > 0, rendered = 0 -> rendering issue
+        let controllerRenderIssue = MediaHealthMetrics(framesReceived: 100, framesDecoded: 100, framesRendered: 0)
+        guard controllerRenderIssue.diagnosePipeline(isHost: false) == .rendering else {
+            print("❌ Expected rendering diagnosis")
+            return false
+        }
+
+        // Test healthy pipeline
+        let healthy = MediaHealthMetrics(framesReceived: 100, framesDecoded: 100, framesRendered: 100)
+        guard healthy.diagnosePipeline(isHost: false) == .healthy else {
+            print("❌ Expected healthy diagnosis")
+            return false
+        }
+
+        print("✅ MediaHealthMetrics diagnostics test passed")
+        return true
+    }
+
+    private static func testAnnotationModel() -> Bool {
+        print("[TEST] AnnotationModel normalized coordinates and strokes...")
+        let point = NormalizedPoint(x: 1.5, y: -0.2)
+        guard point.x == 1.0 && point.y == 0.0 else {
+            print("❌ NormalizedPoint did not clamp to 0.0...1.0 bounds")
+            return false
+        }
+
+        let denorm = point.denormalized(width: 1920, height: 1080)
+        guard denorm.x == 1920 && denorm.y == 0 else {
+            print("❌ Denormalized point incorrect: \(denorm)")
+            return false
+        }
+
+        let stroke = AnnotationStroke(tool: .arrow, colorHex: "#007AFF", lineWidth: 5.0, points: [NormalizedPoint(x: 0.1, y: 0.1), NormalizedPoint(x: 0.5, y: 0.5)])
+        guard stroke.tool == .arrow && stroke.points.count == 2 else {
+            print("❌ AnnotationStroke properties mismatch")
+            return false
+        }
+
+        print("✅ AnnotationModel test passed")
+        return true
+    }
+
+    private static func testConnectionHandshakePayloads() -> Bool {
+        print("[TEST] Connection request and response payloads serialization...")
+        let requestPayload = ConnectionRequestPayload(
+            requesterID: "req123",
+            requesterName: "Alex's MacBook",
+            requesterPlatform: .macOS,
+            requestedPermissions: .fullControl,
+            capabilities: .macOSDefault
+        )
+
+        guard let encodedReq = try? JSONEncoder().encode(requestPayload),
+              let decodedReq = try? JSONDecoder().decode(ConnectionRequestPayload.self, from: encodedReq) else {
+            print("❌ Failed to encode/decode ConnectionRequestPayload")
+            return false
+        }
+        guard decodedReq.requesterID == "req123" && decodedReq.requestedPermissions.controlScreen else {
+            print("❌ ConnectionRequestPayload content mismatch")
+            return false
+        }
+
+        let responsePayload = ConnectionResponsePayload(
+            approved: true,
+            hostID: "host456",
+            hostName: "Office Mac",
+            grantedPermissions: .teaching,
+            hostCapabilities: .macOSDefault
+        )
+        guard let encodedResp = try? JSONEncoder().encode(responsePayload),
+              let decodedResp = try? JSONDecoder().decode(ConnectionResponsePayload.self, from: encodedResp) else {
+            print("❌ Failed to encode/decode ConnectionResponsePayload")
+            return false
+        }
+        guard decodedResp.approved && decodedResp.grantedPermissions.annotation && !decodedResp.grantedPermissions.controlScreen else {
+            print("❌ ConnectionResponsePayload content mismatch")
+            return false
+        }
+
+        print("✅ Connection handshake payloads test passed")
+        return true
     }
 }
