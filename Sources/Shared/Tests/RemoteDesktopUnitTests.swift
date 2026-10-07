@@ -23,6 +23,9 @@ public final class RemoteDesktopUnitTests {
         passed = passed && testTransportPingPong()
         passed = passed && testTransportBinaryPayload1KB()
         passed = passed && testVideoPipelineReadiness()
+        passed = passed && testConnectionCandidateModelAndFiltering()
+        passed = passed && testNetworkInterfaceDiscovery()
+        passed = passed && testConnectionDiagnosticsSnapshot()
 
         print("======== Test Suite Result: \(passed ? "ALL PASSED" : "FAILED") ========")
         return passed
@@ -607,6 +610,109 @@ public final class RemoteDesktopUnitTests {
 
         RemoteMediaSession.shared.stop()
         print("✅ Video pipeline readiness enforcement & frame delivery passed")
+        return true
+    }
+
+    private static func testConnectionCandidateModelAndFiltering() -> Bool {
+        print("[TEST] ConnectionCandidate filtering (no loopback) and priority ordering...")
+
+        // 1. Loopback addresses must be flagged as loopback and never accepted as valid remote candidates
+        let loopback1 = ConnectionCandidate(transport: .lanIPv4, host: "127.0.0.1", port: 58900)
+        let loopback2 = ConnectionCandidate(transport: .lanIPv4, host: "localhost", port: 58900)
+        let loopback3 = ConnectionCandidate(transport: .lanIPv6, host: "::1", port: 58900)
+
+        guard loopback1.isLoopbackOrLocalhost && loopback2.isLoopbackOrLocalhost && loopback3.isLoopbackOrLocalhost else {
+            print("❌ Loopback filtering failed: expected all loopback hosts to be detected")
+            return false
+        }
+
+        // 2. Real LAN candidates must not be flagged as loopback
+        let lanIPv4 = ConnectionCandidate(transport: .lanIPv4, host: "192.168.1.150", port: 58900, priority: 100)
+        let lanIPv6 = ConnectionCandidate(transport: .lanIPv6, host: "fe80::1", port: 58900, priority: 90)
+        let bonjour = ConnectionCandidate(transport: .bonjourService, host: "Test Mac", port: 58900, priority: 80, source: .bonjour)
+
+        guard !lanIPv4.isLoopbackOrLocalhost && !lanIPv6.isLoopbackOrLocalhost && !bonjour.isLoopbackOrLocalhost else {
+            print("❌ False positive on valid LAN candidate loopback check")
+            return false
+        }
+
+        // 3. Priority ordering test
+        let unordered = [bonjour, lanIPv4, lanIPv6]
+        let sorted = unordered.sorted()
+        guard sorted[0].priority >= sorted[1].priority && sorted[1].priority >= sorted[2].priority else {
+            print("❌ Candidate priority sorting failed")
+            return false
+        }
+
+        // 4. Endpoint conversion
+        #if canImport(Network)
+        guard lanIPv4.toNWEndpoint() != nil else {
+            print("❌ toNWEndpoint() failed for valid LAN candidate")
+            return false
+        }
+        #endif
+
+        print("✅ ConnectionCandidate filtering & priority ordering passed")
+        return true
+    }
+
+    private static func testNetworkInterfaceDiscovery() -> Bool {
+        print("[TEST] NetworkInterfaceManager local IP discovery (POSIX getifaddrs)...")
+        let addresses = NetworkInterfaceManager.localIPAddresses()
+        print("Discovered local IP addresses: \(addresses)")
+
+        // Verify that NO loopback addresses are in the returned set
+        for addr in addresses {
+            if addr == "127.0.0.1" || addr == "::1" || addr.lowercased() == "localhost" {
+                print("❌ Loopback address leaked through NetworkInterfaceManager: \(addr)")
+                return false
+            }
+        }
+
+        print("✅ NetworkInterfaceManager non-loopback discovery passed")
+        return true
+    }
+
+    private static func testConnectionDiagnosticsSnapshot() -> Bool {
+        print("[TEST] ConnectionDiagnosticsSnapshot generation (Requirement 13)...")
+        let snapshot = RemoteSessionManager.shared.connectionDiagnosticsSnapshot(peerName: "Test Target")
+
+        guard snapshot.deviceIdentityStatus == "VALID" else {
+            print("❌ DeviceIdentityStatus should be VALID, got \(snapshot.deviceIdentityStatus)")
+            return false
+        }
+
+        guard ["VALID", "UNPAIRED"].contains(snapshot.pairingStatus) else {
+            print("❌ PairingStatus invalid: \(snapshot.pairingStatus)")
+            return false
+        }
+
+        guard ["YES", "NO", "UNKNOWN"].contains(snapshot.reachability) else {
+            print("❌ Reachability invalid: \(snapshot.reachability)")
+            return false
+        }
+
+        guard ["IDLE", "CONNECTING", "READY", "FAILED"].contains(snapshot.transportState) else {
+            print("❌ TransportState invalid: \(snapshot.transportState)")
+            return false
+        }
+
+        guard ["NOT STARTED", "IN PROGRESS", "COMPLETE", "FAILED"].contains(snapshot.handshakeState) else {
+            print("❌ HandshakeState invalid: \(snapshot.handshakeState)")
+            return false
+        }
+
+        guard ["NOT STARTED", "IN PROGRESS", "SUCCESS", "FAILED"].contains(snapshot.authState) else {
+            print("❌ AuthState invalid: \(snapshot.authState)")
+            return false
+        }
+
+        guard ["NOT STARTED", "NEGOTIATING", "ACTIVE", "FAILED"].contains(snapshot.sessionState) else {
+            print("❌ SessionState invalid: \(snapshot.sessionState)")
+            return false
+        }
+
+        print("✅ ConnectionDiagnosticsSnapshot telemetry validation passed")
         return true
     }
 }

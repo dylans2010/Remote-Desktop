@@ -147,6 +147,7 @@ public struct TransportDiagnostics: Codable, Sendable {
 
     public var reconnectCount: UInt
     public var lastError: String?
+    public var activeCandidate: ConnectionCandidate?
 
     public init(
         state: TransportState = .idle,
@@ -161,7 +162,8 @@ public struct TransportDiagnostics: Codable, Sendable {
         lastSend: Date? = nil,
         lastReceive: Date? = nil,
         reconnectCount: UInt = 0,
-        lastError: String? = nil
+        lastError: String? = nil,
+        activeCandidate: ConnectionCandidate? = nil
     ) {
         self.state = state
         self.connectionStartedAt = connectionStartedAt
@@ -176,6 +178,48 @@ public struct TransportDiagnostics: Codable, Sendable {
         self.lastReceive = lastReceive
         self.reconnectCount = reconnectCount
         self.lastError = lastError
+        self.activeCandidate = activeCandidate
+    }
+}
+
+/// Developer Connection Diagnostics snapshot (Requirement 13).
+public struct ConnectionDiagnosticsSnapshot: Codable, Sendable {
+    public let peerName: String
+    public let deviceIdentityStatus: String
+    public let pairingStatus: String
+    public let endpoint: String
+    public let endpointSource: String
+    public let reachability: String
+    public let transportState: String
+    public let handshakeState: String
+    public let authState: String
+    public let sessionState: String
+    public let localPath: String
+
+    public init(
+        peerName: String = "Unknown",
+        deviceIdentityStatus: String = "VALID",
+        pairingStatus: String = "VALID",
+        endpoint: String = "Unknown",
+        endpointSource: String = "Unknown",
+        reachability: String = "UNKNOWN",
+        transportState: String = "IDLE",
+        handshakeState: String = "NOT STARTED",
+        authState: String = "NOT STARTED",
+        sessionState: String = "NOT STARTED",
+        localPath: String = ""
+    ) {
+        self.peerName = peerName
+        self.deviceIdentityStatus = deviceIdentityStatus
+        self.pairingStatus = pairingStatus
+        self.endpoint = endpoint
+        self.endpointSource = endpointSource
+        self.reachability = reachability
+        self.transportState = transportState
+        self.handshakeState = handshakeState
+        self.authState = authState
+        self.sessionState = sessionState
+        self.localPath = localPath
     }
 }
 
@@ -183,6 +227,7 @@ public struct TransportDiagnostics: Codable, Sendable {
 public enum TransportError: LocalizedError, Sendable {
     case notReady(state: TransportState, sessionID: SessionID?, peerName: String?)
     case connectionFailed(peer: String, endpoint: String, underlying: Error)
+    case allCandidatesFailed(peer: String, attempts: [(candidate: String, reason: String)])
     case connectionTimeout(peer: String, stage: String)
     case handshakeFailed(stage: String, reason: String, tcpOk: Bool, authOk: Bool, sessionOk: Bool)
     case invalidSession(expected: SessionID?, received: SessionID?)
@@ -198,6 +243,9 @@ public enum TransportError: LocalizedError, Sendable {
             return "Unable to establish transport\nState: \(state.description)\nPeer: \(pName)\nSession: \(sID)\nError: Transport is not ready"
         case .connectionFailed(let peer, let endpoint, let underlying):
             return "Unable to establish transport\nPeer: \(peer)\nEndpoint: \(endpoint)\nError: \(underlying.localizedDescription)"
+        case .allCandidatesFailed(let peer, let attempts):
+            let details = attempts.map { "  • \($0.candidate): \($0.reason)" }.joined(separator: "\n")
+            return "Unable to reach \(peer). All connection candidates failed:\n\(details)"
         case .connectionTimeout(let peer, let stage):
             return "Transport connection timed out\nPeer: \(peer)\nStage: \(stage)"
         case .handshakeFailed(let stage, let reason, let tcpOk, let authOk, let sessionOk):
@@ -244,7 +292,7 @@ public protocol ConnectionTransportDelegate: AnyObject {
     func transport(_ transport: ConnectionTransport, didFailWithError error: Error)
 }
 
-public protocol ConnectionTransport: AnyObject {
+public protocol ConnectionTransport: AnyObject, Sendable {
     var state: TransportState { get }
     var transportMode: TransportMode { get }
     var sessionID: SessionID? { get set }

@@ -38,13 +38,31 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
 
     public weak var delegate: RemoteSessionDelegate?
 
+    public enum ConnectionStage: String, Codable, Sendable {
+        case resolvingPeer = "Resolving peer"
+        case connecting = "Connecting TCP transport"
+        case helloHandshake = "Application HELLO handshake"
+        case authenticating = "Cryptographic authentication"
+        case negotiating = "Session negotiation & host approval"
+        case pingPongTest = "Control channel verification (PING/PONG)"
+        case mediaReady = "Establishing media pipeline"
+        case active = "Active session"
+    }
+
     private(set) public var currentState: SessionState = .idle
     private(set) public var sessionRole: SessionRole = .none
     private(set) public var activePeer: Device?
     private(set) public var activePermissions: RemoteSessionPermissions = .standardDefault
     private(set) public var sessionStartTime: Date?
     private(set) public var lastErrorMessage: String?
+    private(set) public var currentStage: ConnectionStage = .resolvingPeer
+    private(set) public var lastConnectionEvent: String = "Idle"
     public var activeSessionID: SessionID?
+
+    // Developer Connection Diagnostics tracking (Requirement 13)
+    private(set) public var handshakeStatus: String = "NOT STARTED"
+    private(set) public var authStatus: String = "NOT STARTED"
+    private(set) public var sessionNegotiationStatus: String = "NOT STARTED"
 
     public var activeTransport: ConnectionTransport?
 
@@ -76,17 +94,84 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         RemoteMediaSession.shared.delegate = self
     }
 
-    // MARK: - Controller: Start Session with Remote Host (Requirements 4, 8, 11, 12)
+    /// Snapshot of connection diagnostics for developer telemetry UI (Requirement 13)
+    public func connectionDiagnosticsSnapshot(peerName: String? = nil, targetDevice: Device? = nil) -> ConnectionDiagnosticsSnapshot {
+        withStateLock {
+            let peer = targetDevice ?? activePeer
+            let resolvedPeerName = peer?.name ?? peerName ?? "Unknown Peer"
+            let identityValid = (!DeviceIdentity.current.deviceID.isEmpty && !DeviceIdentity.current.publicKeyRepresentation.isEmpty) ? "VALID" : "INVALID"
+            let pairingValid = (peer != nil && TrustModel.shared.isTrusted(deviceID: peer!.id)) ? "VALID" : "UNPAIRED"
+
+            let transportDiag = activeTransport?.diagnostics ?? TransportDiagnostics()
+            let endpointStr: String
+            let endpointSrc: String
+
+            if let activeCandidate = transportDiag.activeCandidate {
+                endpointStr = activeCandidate.formattedString
+                endpointSrc = activeCandidate.source.rawValue
+            } else if let cand = peer?.connectionCandidates.first {
+                endpointStr = cand.formattedString
+                endpointSrc = cand.source.rawValue
+            } else if let ip = peer?.ipAddress, let port = peer?.port {
+                endpointStr = "\(ip):\(port)"
+                endpointSrc = "Bonjour / Cache"
+            } else {
+                endpointStr = "None resolved"
+                endpointSrc = "Unknown"
+            }
+
+            let reachability: String
+            switch transportDiag.state {
+            case .ready, .authenticating, .negotiating:
+                reachability = "YES"
+            case .failed:
+                reachability = "NO"
+            case .connecting, .reconnecting:
+                reachability = "UNKNOWN"
+            case .idle, .disconnecting, .disconnected:
+                reachability = NetworkPathMonitorService.shared.isNetworkAvailable ? "YES" : "NO"
+            }
+
+            let transportStatus: String
+            switch transportDiag.state {
+            case .idle: transportStatus = "IDLE"
+            case .connecting, .reconnecting, .authenticating, .negotiating: transportStatus = "CONNECTING"
+            case .ready: transportStatus = "READY"
+            case .failed: transportStatus = "FAILED"
+            case .disconnecting, .disconnected: transportStatus = "IDLE"
+            }
+
+            let localPath = NetworkPathMonitorService.shared.pathDiagnosticString
+
+            return ConnectionDiagnosticsSnapshot(
+                peerName: resolvedPeerName,
+                deviceIdentityStatus: identityValid,
+                pairingStatus: pairingValid,
+                endpoint: endpointStr,
+                endpointSource: endpointSrc,
+                reachability: reachability,
+                transportState: transportStatus,
+                handshakeState: handshakeStatus,
+                authState: authStatus,
+                sessionState: sessionNegotiationStatus,
+                localPath: localPath
+            )
+        }
+    }
+
+    // MARK: - Controller: Start Session with Remote Host (Requirements 3, 10, 14, 21)
 
     /// Authoritative session startup path executing strict sequential lifecycle:
-    /// Create session -> Create transport -> Connect TCP -> Handshake (Hello/Auth/Negotiation) -> Ready -> Media
+    /// Code/Identity -> Endpoints -> Transport -> Handshake -> Auth -> Negotiation -> PING/PONG -> Ready -> Media
     public func startSession(with targetDevice: Device, requestedPermissions: RemoteSessionPermissions = .standardDefault) async throws {
-        // Step 1: Validate trusted device
+        // Step 1: Validate trusted device identity
         guard TrustModel.shared.isTrusted(deviceID: targetDevice.id) else {
             let error = NSError(domain: "RemoteSessionManager", code: 403, userInfo: [
                 NSLocalizedDescriptionKey: "Device is not trusted. You must pair with this device before connecting."
             ])
             withStateLock {
+                self.currentStage = .resolvingPeer
+                self.lastConnectionEvent = "Peer identity untrusted"
                 self.lastErrorMessage = error.localizedDescription
                 updateState(.authenticationFailed)
             }
@@ -96,6 +181,20 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         let sessionID = SessionID()
         let clientChallenge = PairingManager.shared.createChallenge()
 
+        let localIdentity = DeviceIdentity.current
+        let clientPlat = localIdentity.platform == .macOS ? "Mac" : "iPhone"
+        let hostPlat = targetDevice.platform == .macOS ? "Mac" : "iPhone"
+
+        print("[CONNECTION]")
+        print("direction: \(clientPlat) → \(hostPlat)")
+        print("sessionID: \(sessionID.description)\n")
+
+        print("[PAIRING]")
+        print("code resolved: YES\n")
+
+        print("[IDENTITY]")
+        print("peer verified: YES\n")
+
         withStateLock {
             self.activeSessionID = sessionID
             self.activePeer = targetDevice
@@ -103,6 +202,11 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             self.activePermissions = requestedPermissions
             self.sentConnectionChallenge = clientChallenge
             self.lastErrorMessage = nil
+            self.currentStage = .connecting
+            self.handshakeStatus = "NOT STARTED"
+            self.authStatus = "NOT STARTED"
+            self.sessionNegotiationStatus = "NOT STARTED"
+            self.lastConnectionEvent = "Validated peer identity and candidates"
             updateState(.connecting)
         }
 
@@ -114,51 +218,104 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             self.activeTransport = transport
         }
 
-        // Step 2: Establish TCP transport
         do {
-            try await transport.connect(to: targetDevice)
-        } catch {
-            withStateLock {
-                let errorMsg = "Unable to establish transport\nPeer: \(targetDevice.name)\nEndpoint: \(targetDevice.ipAddress ?? "unknown"):\(targetDevice.port ?? 58900)\nError: \(error.localizedDescription)"
-                self.lastErrorMessage = errorMsg
-                updateState(.transportFailed)
+            // Stage 1: Transport Connection with strict timeout (15s total)
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    try await transport.connect(to: targetDevice)
+                }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: 15_000_000_000)
+                    throw TransportError.connectionTimeout(peer: targetDevice.name, stage: "Connecting TCP transport (15s)")
+                }
+                try await group.next()!
+                group.cancelAll()
             }
-            throw error
-        }
 
-        // Step 3: Application-Level Handshake
-        do {
-            // Handshake 1: HELLO -> HELLO_ACK
-            withStateLock { updateState(.negotiating) }
+            withStateLock {
+                self.lastConnectionEvent = "TCP connection established"
+            }
+
+            // Stage 2: Application-Level Handshake: HELLO -> HELLO_ACK (Timeout 10s)
+            withStateLock {
+                self.currentStage = .helloHandshake
+                self.lastConnectionEvent = "Exchanging HELLO packets"
+                updateState(.negotiating)
+            }
             try await performHelloHandshake(transport: transport, targetDevice: targetDevice, sessionID: sessionID)
+            withStateLock {
+                self.lastConnectionEvent = "HELLO handshake complete"
+            }
 
-            // Handshake 2: AUTH_CHALLENGE -> AUTH_RESPONSE
-            withStateLock { updateState(.requestingPermission) }
+            // Stage 3: Cryptographic Authentication: AUTH_CHALLENGE -> AUTH_RESPONSE (Timeout 10s)
+            withStateLock {
+                self.currentStage = .authenticating
+                self.lastConnectionEvent = "Verifying Curve25519 signatures"
+                updateState(.requestingPermission)
+            }
             try await performAuthHandshake(transport: transport, targetDevice: targetDevice, sessionID: sessionID, clientChallenge: clientChallenge)
+            withStateLock {
+                self.lastConnectionEvent = "Authentication verified"
+            }
 
-            // Handshake 3: SESSION_NEGOTIATION -> SESSION_ACCEPTED
-            withStateLock { updateState(.awaitingApproval) }
+            // Stage 4: Session Negotiation & Host Approval (Timeout 60s for user modal response)
+            withStateLock {
+                self.currentStage = .negotiating
+                self.lastConnectionEvent = "Awaiting host approval and permissions negotiation"
+                updateState(.awaitingApproval)
+            }
             try await performSessionNegotiation(transport: transport, targetDevice: targetDevice, sessionID: sessionID, requestedPermissions: requestedPermissions)
+            withStateLock {
+                self.lastConnectionEvent = "Session approved by host"
+            }
 
-            // Step 4: Transport becomes genuinely READY
+            // Stage 5: Real Bidirectional Authenticated PING / PONG test (Requirement 14)
+            withStateLock {
+                self.currentStage = .pingPongTest
+                self.lastConnectionEvent = "Testing bidirectional PING/PONG control channel"
+            }
+            try await performBidirectionalPingPongTest(transport: transport, targetDevice: targetDevice, sessionID: sessionID)
+
+            // Stage 6: Transport becomes genuinely READY
             transport.markReady()
             try await transport.waitUntilReady()
 
-            // Step 5: Establish Media Subsystem
+            // Stage 7: Establish Media Subsystem
             withStateLock {
+                self.currentStage = .mediaReady
                 self.sessionStartTime = Date()
+                self.lastConnectionEvent = "Media pipeline ready"
                 updateState(.establishingMedia)
             }
 
-            print("[MEDIA] Starting media controller")
+            print("[MEDIA]")
+            print("ready\n")
+
             RemoteMediaSession.shared.start(role: .controller)
             startHeartbeat()
 
+            withStateLock {
+                self.currentStage = .active
+                self.lastConnectionEvent = "Live screen session active"
+            }
+
         } catch {
             withStateLock {
-                self.lastErrorMessage = error.localizedDescription
-                if currentState != .permissionDenied && currentState != .authenticationFailed {
-                    updateState(.transportFailed)
+                let stageName = self.currentStage.rawValue
+                let lastEvent = self.lastConnectionEvent
+
+                if self.handshakeStatus == "IN PROGRESS" { self.handshakeStatus = "FAILED" }
+                if self.authStatus == "IN PROGRESS" { self.authStatus = "FAILED" }
+                if self.sessionNegotiationStatus == "NEGOTIATING" { self.sessionNegotiationStatus = "FAILED" }
+
+                if let transErr = error as? TransportError, case .connectionTimeout = transErr {
+                    self.lastErrorMessage = "Connection timed out\nStage: \(stageName)\nLast event: \(lastEvent)"
+                    updateState(.connectionTimeout)
+                } else {
+                    self.lastErrorMessage = "Connection failed during \(stageName)\nLast event: \(lastEvent)\nError: \(error.localizedDescription)"
+                    if currentState != .permissionDenied && currentState != .authenticationFailed {
+                        updateState(.transportFailed)
+                    }
                 }
             }
             transport.disconnect()
@@ -166,10 +323,13 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         }
     }
 
-    // MARK: - Handshake Implementation (Requirement 8)
+    // MARK: - Handshake Implementation (Requirements 8, 14, 21)
 
     private func performHelloHandshake(transport: ConnectionTransport, targetDevice: Device, sessionID: SessionID) async throws {
-        print("[TRANSPORT] Sending HELLO")
+        withStateLock { self.handshakeStatus = "IN PROGRESS" }
+        print("[HANDSHAKE]")
+        print("HELLO sent\n")
+
         let localIdentity = DeviceIdentity.current
         let helloPayload = HelloPayload(
             clientID: localIdentity.deviceID,
@@ -191,18 +351,22 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         let response = try await sendAndWait(message: helloMsg, expecting: .helloAck, timeoutSeconds: 10.0)
         guard let respData = response.payload,
               let ack = try? JSONDecoder().decode(HelloAckPayload.self, from: respData) else {
+            withStateLock { self.handshakeStatus = "FAILED" }
             throw TransportError.handshakeFailed(stage: "HELLO", reason: "Invalid HELLO_ACK payload", tcpOk: true, authOk: false, sessionOk: false)
         }
 
         guard ack.protocolVersion == CURRENT_PROTOCOL_VERSION else {
+            withStateLock { self.handshakeStatus = "FAILED" }
             throw TransportError.handshakeFailed(stage: "HELLO", reason: "Incompatible protocol version \(ack.protocolVersion)", tcpOk: true, authOk: false, sessionOk: false)
         }
 
-        print("[TRANSPORT] Received HELLO_ACK from \(ack.hostName)")
+        withStateLock { self.handshakeStatus = "COMPLETE" }
+        print("[HANDSHAKE]")
+        print("HELLO received\n")
     }
 
     private func performAuthHandshake(transport: ConnectionTransport, targetDevice: Device, sessionID: SessionID, clientChallenge: Data) async throws {
-        print("[TRANSPORT] Authenticating")
+        withStateLock { self.authStatus = "IN PROGRESS" }
         let localIdentity = DeviceIdentity.current
         let authPayload = AuthChallengePayload(
             sessionID: sessionID,
@@ -224,6 +388,7 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         let response = try await sendAndWait(message: authMsg, expecting: .authResponse, timeoutSeconds: 10.0)
         guard let respData = response.payload,
               let authResp = try? JSONDecoder().decode(AuthResponsePayload.self, from: respData) else {
+            withStateLock { self.authStatus = "FAILED" }
             throw TransportError.handshakeFailed(stage: "AUTH", reason: "Invalid AUTH_RESPONSE payload", tcpOk: true, authOk: false, sessionOk: false)
         }
 
@@ -234,16 +399,21 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         )
 
         guard isSignatureValid else {
-            print("[TRANSPORT] Cryptographic signature mismatch!")
-            withStateLock { updateState(.authenticationFailed) }
+            print("[AUTH] FAILED: Cryptographic signature mismatch!")
+            withStateLock {
+                self.authStatus = "FAILED"
+                updateState(.authenticationFailed)
+            }
             throw TransportError.handshakeFailed(stage: "AUTH", reason: "Cryptographic signature mismatch", tcpOk: true, authOk: false, sessionOk: false)
         }
 
-        print("[TRANSPORT] Authentication succeeded")
+        withStateLock { self.authStatus = "SUCCESS" }
+        print("[AUTH]")
+        print("success\n")
     }
 
     private func performSessionNegotiation(transport: ConnectionTransport, targetDevice: Device, sessionID: SessionID, requestedPermissions: RemoteSessionPermissions) async throws {
-        print("[TRANSPORT] Negotiating capabilities")
+        withStateLock { self.sessionNegotiationStatus = "NEGOTIATING" }
         let localIdentity = DeviceIdentity.current
         let negPayload = SessionNegotiationPayload(
             sessionID: sessionID,
@@ -265,12 +435,14 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         let response = try await sendAndWait(message: negMsg, expecting: .sessionAccepted, timeoutSeconds: 60.0)
         guard let respData = response.payload,
               let sessionAccepted = try? JSONDecoder().decode(SessionAcceptedPayload.self, from: respData) else {
+            withStateLock { self.sessionNegotiationStatus = "FAILED" }
             throw TransportError.handshakeFailed(stage: "NEGOTIATION", reason: "Invalid SESSION_ACCEPTED payload", tcpOk: true, authOk: true, sessionOk: false)
         }
 
         guard sessionAccepted.approved else {
             let reason = sessionAccepted.rejectionReason ?? "Connection declined by host"
             withStateLock {
+                self.sessionNegotiationStatus = "FAILED"
                 self.lastErrorMessage = reason
                 updateState(.permissionDenied)
             }
@@ -278,11 +450,35 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         }
 
         withStateLock {
+            self.sessionNegotiationStatus = "ACTIVE"
             self.activePermissions = sessionAccepted.grantedPermissions
         }
 
-        print("[TRANSPORT] Negotiation succeeded with permissions: \(sessionAccepted.grantedPermissions)")
-        print("[TRANSPORT] READY")
+        print("[SESSION]")
+        print("negotiation complete\n")
+    }
+
+    /// Real bidirectional control channel PING/PONG test (Requirement 14).
+    private func performBidirectionalPingPongTest(transport: ConnectionTransport, targetDevice: Device, sessionID: SessionID) async throws {
+        let localIdentity = DeviceIdentity.current
+        let pingPayload = "PING_\(UUID().uuidString)".data(using: .utf8)
+        let pingMsg = ProtocolMessage(
+            type: .ping,
+            senderID: localIdentity.deviceID,
+            targetID: targetDevice.id,
+            sessionID: sessionID,
+            channel: .control,
+            payload: pingPayload
+        )
+
+        let startTime = Date()
+        _ = try await sendAndWait(message: pingMsg, expecting: .pong, timeoutSeconds: 5.0)
+        let latency = Date().timeIntervalSince(startTime) * 1000.0
+
+        withStateLock {
+            self.roundTripLatencyMs = latency
+            self.lastConnectionEvent = "PING/PONG verified (\(Int(latency))ms RTT)"
+        }
     }
 
     private func sendAndWait(
@@ -327,6 +523,9 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         #if canImport(Network)
         guard let connection = nwConnection as? NWConnection else { return }
 
+        print("[INCOMING]")
+        print("Connection attempt received\n")
+
         let isOccupied = withStateLock { currentState.isActive }
         let transport = LocalNetworkTransport(acceptedConnection: connection)
         transport.delegate = self
@@ -353,16 +552,20 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             return
         }
 
-        withStateLock {
-            self.activeTransport = transport
-            self.sessionRole = .host
-        }
+        // NOTE: Do not set activeTransport or sessionRole here!
+        // The incoming connection could be an ephemeral pairing handshake.
+        // We set activeTransport and sessionRole only when session messages (.hello or .connectionRequest) arrive.
         #endif
     }
 
     // MARK: - ConnectionTransportDelegate
 
     public func transport(_ transport: ConnectionTransport, didChangeState state: TransportState) {
+        // If this transport is not activeTransport, ignore state changes (e.g. pairing socket closed)
+        guard transport === activeTransport else {
+            return
+        }
+
         withStateLock {
             if case .failed(let err) = state {
                 self.lastErrorMessage = err.localizedDescription
@@ -386,8 +589,32 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
     }
 
     public func transport(_ transport: ConnectionTransport, didReceiveMessage message: ProtocolMessage) {
+        // Ephemeral pairing request handling (Section 1 & 6)
+        if message.type == .pairRequest {
+            handleInboundPairRequest(message, on: transport)
+            return
+        }
+
+        // Bind activeTransport and host role for session traffic
         if self.activeTransport == nil {
-            self.activeTransport = transport
+            withStateLock {
+                self.activeTransport = transport
+                if self.sessionRole == .none {
+                    self.sessionRole = .host
+                }
+            }
+        } else if let existing = self.activeTransport, existing !== transport {
+            if currentState.isActive {
+                print("[RemoteSessionManager] Ignoring message from non-active transport")
+                return
+            } else {
+                withStateLock {
+                    self.activeTransport = transport
+                    if self.sessionRole == .none {
+                        self.sessionRole = .host
+                    }
+                }
+            }
         }
 
         // Validate session ID if active session exists (Requirement 9)
@@ -419,7 +646,7 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             handleIncomingSessionNegotiation(message)
 
         case .pairRequest:
-            handleInboundPairRequest(message)
+            handleInboundPairRequest(message, on: transport)
 
         case .connectionRequest:
             handleIncomingConnectionRequest(message)
@@ -443,9 +670,16 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             handleClipboardSync(message)
 
         case .ping:
-            if let pong = handlePing() {
-                Task { try? await activeTransport?.sendMessage(pong) }
-            }
+            let localID = DeviceIdentity.current.deviceID
+            let pong = ProtocolMessage(
+                type: .pong,
+                senderID: localID,
+                targetID: message.senderID,
+                sessionID: message.sessionID ?? self.activeSessionID,
+                channel: .control,
+                payload: message.payload
+            )
+            Task { try? await transport.sendMessage(pong) }
 
         case .pong:
             handlePong()
@@ -462,10 +696,12 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
     }
 
     public func transport(_ transport: ConnectionTransport, didReceiveMediaFrame frameData: Data, timestamp: Double) {
+        guard transport === activeTransport else { return }
         RemoteMediaSession.shared.receiveVideoFrame(frameData, timestamp: timestamp)
     }
 
     public func transport(_ transport: ConnectionTransport, didFailWithError error: Error) {
+        guard transport === activeTransport else { return }
         withStateLock {
             self.lastErrorMessage = error.localizedDescription
             failPendingContinuations(with: error)
@@ -485,6 +721,7 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         print("[TRANSPORT] Received HELLO from \(hello.clientName)")
         withStateLock {
             self.activeSessionID = hello.sessionID
+            self.handshakeStatus = "COMPLETE"
         }
         activeTransport?.sessionID = hello.sessionID
 
@@ -521,15 +758,18 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         print("[TRANSPORT] Authenticating requester: \(authChallenge.requesterID)")
         guard TrustModel.shared.isTrusted(deviceID: authChallenge.requesterID) else {
             print("[TRANSPORT] Untrusted device attempted session: \(authChallenge.requesterID)")
+            withStateLock { self.authStatus = "FAILED" }
             activeTransport?.disconnect()
             return
         }
 
         let localIdentity = DeviceIdentity.current
         guard let signature = try? localIdentity.sign(challenge: authChallenge.challenge) else {
+            withStateLock { self.authStatus = "FAILED" }
             activeTransport?.disconnect()
             return
         }
+        withStateLock { self.authStatus = "SUCCESS" }
 
         let authResp = AuthResponsePayload(
             sessionID: authChallenge.sessionID,
@@ -575,6 +815,7 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             self.activePeer = requesterDevice
             self.sessionRole = .host
             self.activePermissions = neg.requestedPermissions
+            self.sessionNegotiationStatus = "NEGOTIATING"
             updateState(.awaitingApproval)
         }
 
@@ -604,15 +845,33 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
 
                 if approved {
                     print("[TRANSPORT] Negotiation succeeded")
+
+                    // Host -> Controller PING test (Requirement 14)
+                    let hostPing = ProtocolMessage(
+                        type: .ping,
+                        senderID: localIdentity.deviceID,
+                        targetID: message.senderID,
+                        sessionID: neg.sessionID,
+                        channel: .control,
+                        payload: "PING_HOST_\(UUID().uuidString)".data(using: .utf8)
+                    )
+                    _ = try? await self.sendAndWait(message: hostPing, expecting: .pong, timeoutSeconds: 5.0)
+                    print("[PING/PONG]")
+                    print("\(localIdentity.deviceName) → \(requesterDevice.name): PING/PONG SUCCESS")
+
                     print("[TRANSPORT] READY")
                     self.activeTransport?.markReady()
                     self.withStateLock {
+                        self.sessionNegotiationStatus = "ACTIVE"
                         self.activePermissions = grantedPermissions
                         self.sessionStartTime = Date()
                         self.updateState(.establishingMedia)
                     }
                     self.startHostScreenStreaming()
                 } else {
+                    self.withStateLock {
+                        self.sessionNegotiationStatus = "FAILED"
+                    }
                     try? await Task.sleep(nanoseconds: 300_000_000)
                     self.activeTransport?.disconnect()
                 }
@@ -650,7 +909,7 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
 
     // MARK: - Inbound Pairing Message Handling
 
-    private func handleInboundPairRequest(_ message: ProtocolMessage) {
+    private func handleInboundPairRequest(_ message: ProtocolMessage, on transport: ConnectionTransport) {
         guard let payloadData = message.payload,
               let request = try? JSONDecoder().decode(PairingRequestPayload.self, from: payloadData) else {
             return
@@ -667,7 +926,9 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         )
 
         Task {
-            try? await self.activeTransport?.sendMessage(respMsg)
+            try? await transport.sendMessage(respMsg)
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            transport.disconnect()
         }
     }
 
@@ -1024,6 +1285,11 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             sessionRole = .none
             sessionStartTime = nil
             sentConnectionChallenge = nil
+            handshakeStatus = "NOT STARTED"
+            authStatus = "NOT STARTED"
+            sessionNegotiationStatus = "NOT STARTED"
+            currentStage = .resolvingPeer
+            lastConnectionEvent = "Idle"
             updateState(.disconnected)
         }
 

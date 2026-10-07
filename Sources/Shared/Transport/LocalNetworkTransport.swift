@@ -49,7 +49,7 @@ public final class LocalNetworkTransport: ConnectionTransport, RemoteTransport, 
         setupConnection(acceptedConnection, peerName: "Inbound Peer", endpointString: acceptedConnection.endpoint.debugDescription)
     }
 
-    // MARK: - State Transitions & Logging (Requirement 17)
+    // MARK: - State Transitions & Logging (Requirements 17 & 21)
 
     private func transition(to newState: TransportState) {
         withStateLock {
@@ -60,13 +60,15 @@ public final class LocalNetworkTransport: ConnectionTransport, RemoteTransport, 
             case .idle:
                 print("[TRANSPORT] Idle")
             case .connecting:
-                print("[TRANSPORT] Connecting")
+                print("[TRANSPORT]")
+                print("state: connecting\n")
             case .authenticating:
                 print("[TRANSPORT] Authenticating")
             case .negotiating:
                 print("[TRANSPORT] Negotiating capabilities")
             case .ready:
-                print("[TRANSPORT] READY")
+                print("[TRANSPORT]")
+                print("state: ready\n")
             case .reconnecting:
                 print("[TRANSPORT] Reconnecting")
             case .disconnecting:
@@ -113,9 +115,9 @@ public final class LocalNetworkTransport: ConnectionTransport, RemoteTransport, 
         delegate?.transport(self, didChangeState: newState)
     }
 
-    // MARK: - Outbound Connection (Requirement 4 & 7)
+    // MARK: - Outbound Connection (Requirements 3, 4, 7, 15, 17, 21)
 
-    /// Connect out to a remote peer device over TCP. Waits for NWConnection to be established.
+    /// Connect out to a remote peer device over TCP by trying candidates in priority order with strict timeouts.
     public func connect(to peer: Device) async throws {
         transition(to: .connecting)
         withStateLock {
@@ -123,27 +125,105 @@ public final class LocalNetworkTransport: ConnectionTransport, RemoteTransport, 
             self.activePeerName = peer.name
         }
 
-        guard let host = peer.ipAddress else {
+        // 1. Gather all viable connection candidates
+        var candidates = peer.connectionCandidates
+
+        // If no explicit candidates, construct fallback candidates from IP and Bonjour service
+        if candidates.isEmpty {
+            if let ip = peer.ipAddress, !ip.isEmpty {
+                let isV6 = ip.contains(":")
+                candidates.append(ConnectionCandidate(
+                    transport: isV6 ? .lanIPv6 : .lanIPv4,
+                    host: ip,
+                    port: peer.port ?? 58900,
+                    priority: 10,
+                    source: .cached,
+                    isIPv6: isV6
+                ))
+            }
+            candidates.append(ConnectionCandidate(
+                transport: .bonjourService,
+                host: peer.name,
+                port: peer.port ?? 58900,
+                priority: 5,
+                source: .bonjour
+            ))
+        }
+
+        // Rule 7: Never advertise or connect to localhost / 127.0.0.1 / ::1 as remote peer endpoint
+        candidates.removeAll { candidate in
+            let h = candidate.host
+            return h == "127.0.0.1" || h == "localhost" || h == "::1" || h.hasPrefix("127.")
+        }
+
+        // Sort candidates by priority descending
+        candidates.sort { $0.priority > $1.priority }
+
+        guard !candidates.isEmpty else {
             let error = TransportError.connectionFailed(
                 peer: peer.name,
                 endpoint: "None",
-                underlying: NSError(domain: "LocalNetworkTransport", code: 400, userInfo: [NSLocalizedDescriptionKey: "Peer IP address missing"])
+                underlying: NSError(domain: "LocalNetworkTransport", code: 400, userInfo: [NSLocalizedDescriptionKey: "No reachable endpoint candidates found for \(peer.name)"])
             )
             withStateLock { self.diagnostics.lastError = error.localizedDescription }
             transition(to: .failed(error))
             throw error
         }
 
-        let portNumber = peer.port ?? 58900
-        let endpointString = "\(host):\(portNumber)"
-        withStateLock { self.activeEndpointString = endpointString }
+        var attemptedFailures: [(candidate: String, reason: String)] = []
 
-        let port = NWEndpoint.Port(rawValue: portNumber) ?? 58900
-        let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: port)
+        // 2. Iterate candidates in priority order
+        for candidate in candidates {
+            let endpointStr = "\(candidate.host):\(candidate.port)"
+            withStateLock { self.activeEndpointString = endpointStr }
+
+            print("[ENDPOINT]")
+            print("candidate: \(endpointStr)")
+            print("source: \(candidate.source.rawValue)")
+            print("port: \(candidate.port)\n")
+
+            print("[NETWORK]")
+            print("local path: \(NetworkPathMonitorService.shared.pathDiagnosticString)")
+            print("remote candidate: \(endpointStr)\n")
+
+            print("[TRANSPORT]")
+            print("state: connecting\n")
+
+            do {
+                try await attemptCandidateConnection(candidate: candidate, peerName: peer.name)
+                // Connection successfully reached .ready!
+                withStateLock {
+                    self.diagnostics.activeCandidate = candidate
+                }
+                print("[TRANSPORT]")
+                print("state: ready\n")
+                return
+            } catch {
+                print("[FAILURE]")
+                print("stage: transport")
+                print("error: \(error.localizedDescription)")
+                print("underlyingError: \(endpointStr) connection failed\n")
+                attemptedFailures.append((candidate: endpointStr, reason: error.localizedDescription))
+            }
+        }
+
+        // 3. All candidates failed
+        let compositeError = TransportError.allCandidatesFailed(peer: peer.name, attempts: attemptedFailures)
+        withStateLock {
+            self.diagnostics.lastError = compositeError.localizedDescription
+        }
+        transition(to: .failed(compositeError))
+        throw compositeError
+    }
+
+    /// Single candidate connection attempt with a strict timeout (6.0s) to prevent permanent hang in .waiting.
+    private func attemptCandidateConnection(candidate: ConnectionCandidate, peerName: String) async throws {
+        let endpoint = candidate.toNWEndpoint()
+        let endpointStr = "\(candidate.host):\(candidate.port)"
 
         let tcpOptions = NWProtocolTCP.Options()
         tcpOptions.enableFastOpen = false
-        tcpOptions.noDelay = true // Disable Nagle's algorithm for low-latency desktop input/video
+        tcpOptions.noDelay = true
 
         let params = NWParameters(tls: nil, tcp: tcpOptions)
         params.includePeerToPeer = true
@@ -153,11 +233,24 @@ public final class LocalNetworkTransport: ConnectionTransport, RemoteTransport, 
             self.connection = nwConn
         }
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            withStateLock {
-                self.connectContinuation = continuation
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    self.withStateLock {
+                        self.connectContinuation = continuation
+                    }
+                    self.setupConnection(nwConn, peerName: peerName, endpointString: endpointStr)
+                }
             }
-            setupConnection(nwConn, peerName: peer.name, endpointString: endpointString)
+
+            // Strict candidate timeout: 6 seconds per candidate
+            group.addTask {
+                try await Task.sleep(nanoseconds: 6_000_000_000)
+                throw TransportError.connectionTimeout(peer: peerName, stage: "Connecting to \(endpointStr)")
+            }
+
+            try await group.next()!
+            group.cancelAll()
         }
     }
 
@@ -167,14 +260,17 @@ public final class LocalNetworkTransport: ConnectionTransport, RemoteTransport, 
             guard let self = self else { return }
 
             switch connState {
+            case .setup:
+                break
+
             case .preparing:
-                print("[TRANSPORT] NWConnection preparing")
+                print("[TRANSPORT] NWConnection preparing (\(endpointString))")
 
             case .waiting(let err):
-                print("[TRANSPORT] NWConnection waiting: \(err.localizedDescription)")
+                print("[TRANSPORT] NWConnection waiting: \(err.localizedDescription) (\(endpointString))")
 
             case .ready:
-                print("[TRANSPORT] NWConnection ready (TCP established)")
+                print("[TRANSPORT] NWConnection ready (TCP established) (\(endpointString))")
                 let continuationToResume = self.withStateLock { () -> CheckedContinuation<Void, Error>? in
                     self.diagnostics.connectedAt = Date()
                     let cont = self.connectContinuation
@@ -186,7 +282,7 @@ public final class LocalNetworkTransport: ConnectionTransport, RemoteTransport, 
                 continuationToResume?.resume()
 
             case .failed(let err):
-                print("[TRANSPORT] NWConnection failed: \(err.localizedDescription)")
+                print("[TRANSPORT] NWConnection failed: \(err.localizedDescription) (\(endpointString))")
                 let customErr = TransportError.connectionFailed(
                     peer: peerName,
                     endpoint: endpointString,
@@ -194,12 +290,20 @@ public final class LocalNetworkTransport: ConnectionTransport, RemoteTransport, 
                 )
                 self.withStateLock {
                     self.diagnostics.lastError = customErr.localizedDescription
+                    if let cont = self.connectContinuation {
+                        self.connectContinuation = nil
+                        cont.resume(throwing: customErr)
+                    }
                 }
-                self.transition(to: .failed(customErr))
 
             case .cancelled:
-                print("[TRANSPORT] NWConnection cancelled")
-                self.transition(to: .disconnected)
+                print("[TRANSPORT] NWConnection cancelled (\(endpointString))")
+                let contToFail = self.withStateLock { () -> CheckedContinuation<Void, Error>? in
+                    let cont = self.connectContinuation
+                    self.connectContinuation = nil
+                    return cont
+                }
+                contToFail?.resume(throwing: TransportError.cancelled)
 
             @unknown default:
                 break

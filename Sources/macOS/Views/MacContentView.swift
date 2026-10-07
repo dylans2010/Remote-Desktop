@@ -96,7 +96,7 @@ public struct MacContentView: View {
     }
 
     private func setupBonjourDiscovery() {
-        let localIdentity = DeviceIdentity(deviceName: HostModeManager.hostDeviceName())
+        let localIdentity = DeviceIdentity.current
         BonjourDiscoveryManager.shared.startAdvertising(identity: localIdentity)
         BonjourDiscoveryManager.shared.startBrowsing { devices in
             DispatchQueue.main.async {

@@ -89,6 +89,12 @@
 		F000000D0000000000000003 /* IOSDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F000000D0000000000000001 /* IOSDiagnosticsView.swift */; };
 		F000000E0000000000000003 /* IOSIncomingRequestSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F000000E0000000000000001 /* IOSIncomingRequestSheet.swift */; };
 		F000000F0000000000000003 /* IOSHostSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F000000F0000000000000001 /* IOSHostSessionView.swift */; };
+		F00000100000000000000002 /* ConnectionCandidate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000100000000000000001 /* ConnectionCandidate.swift */; };
+		F00000100000000000000003 /* ConnectionCandidate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000100000000000000001 /* ConnectionCandidate.swift */; };
+		F00000110000000000000002 /* NetworkInterfaceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000110000000000000001 /* NetworkInterfaceManager.swift */; };
+		F00000110000000000000003 /* NetworkInterfaceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000110000000000000001 /* NetworkInterfaceManager.swift */; };
+		F00000120000000000000002 /* NetworkPathMonitorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000120000000000000001 /* NetworkPathMonitorService.swift */; };
+		F00000120000000000000003 /* NetworkPathMonitorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000120000000000000001 /* NetworkPathMonitorService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -154,6 +160,9 @@
 		F000000D0000000000000001 /* IOSDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/IOSDiagnosticsView.swift"; sourceTree = "<group>"; };
 		F000000E0000000000000001 /* IOSIncomingRequestSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/IOSIncomingRequestSheet.swift"; sourceTree = "<group>"; };
 		F000000F0000000000000001 /* IOSHostSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/IOSHostSessionView.swift"; sourceTree = "<group>"; };
+		F00000100000000000000001 /* ConnectionCandidate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models/ConnectionCandidate.swift"; sourceTree = "<group>"; };
+		F00000110000000000000001 /* NetworkInterfaceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Networking/NetworkInterfaceManager.swift"; sourceTree = "<group>"; };
+		F00000120000000000000001 /* NetworkPathMonitorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Networking/NetworkPathMonitorService.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -183,6 +192,9 @@
 				F00000040000000000000001 /* MediaDiagnostics.swift */,
 				F00000050000000000000001 /* AnnotationModel.swift */,
 				F00000060000000000000001 /* RemoteMediaSession.swift */,
+				F00000100000000000000001 /* ConnectionCandidate.swift */,
+				F00000110000000000000001 /* NetworkInterfaceManager.swift */,
+				F00000120000000000000001 /* NetworkPathMonitorService.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -399,6 +411,9 @@
 				F00000090000000000000002 /* MacDiagnosticsView.swift in Sources */,
 				F000000A0000000000000002 /* MacIncomingRequestSheet.swift in Sources */,
 				F000000B0000000000000002 /* MacHostSessionView.swift in Sources */,
+				F00000100000000000000002 /* ConnectionCandidate.swift in Sources */,
+				F00000110000000000000002 /* NetworkInterfaceManager.swift in Sources */,
+				F00000120000000000000002 /* NetworkPathMonitorService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -444,6 +459,9 @@
 				F000000D0000000000000003 /* IOSDiagnosticsView.swift in Sources */,
 				F000000E0000000000000003 /* IOSIncomingRequestSheet.swift in Sources */,
 				F000000F0000000000000003 /* IOSHostSessionView.swift in Sources */,
+				F00000100000000000000003 /* ConnectionCandidate.swift in Sources */,
+				F00000110000000000000003 /* NetworkInterfaceManager.swift in Sources */,
+				F00000120000000000000003 /* NetworkPathMonitorService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

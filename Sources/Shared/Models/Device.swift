@@ -40,6 +40,7 @@ public struct Device: Identifiable, Codable, Sendable, Equatable, Hashable {
     public var ipAddress: String?
     public var port: UInt16?
     public var defaultPermissions: RemoteSessionPermissions
+    public var connectionCandidates: [ConnectionCandidate]
 
     public init(
         id: String,
@@ -53,7 +54,8 @@ public struct Device: Identifiable, Codable, Sendable, Equatable, Hashable {
         isThisDevice: Bool = false,
         ipAddress: String? = nil,
         port: UInt16? = nil,
-        defaultPermissions: RemoteSessionPermissions = .standardDefault
+        defaultPermissions: RemoteSessionPermissions = .standardDefault,
+        connectionCandidates: [ConnectionCandidate] = []
     ) {
         self.id = id
         self.name = name
@@ -67,6 +69,47 @@ public struct Device: Identifiable, Codable, Sendable, Equatable, Hashable {
         self.ipAddress = ipAddress
         self.port = port
         self.defaultPermissions = defaultPermissions
+        self.connectionCandidates = connectionCandidates
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, platform, capabilities, publicKeyData, trustStatus
+        case onlineState, lastSeen, isThisDevice, ipAddress, port
+        case defaultPermissions, connectionCandidates
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.platform = try container.decode(DevicePlatform.self, forKey: .platform)
+        self.capabilities = try container.decode(RemoteCapabilities.self, forKey: .capabilities)
+        self.publicKeyData = try container.decode(Data.self, forKey: .publicKeyData)
+        self.trustStatus = try container.decode(DeviceTrustStatus.self, forKey: .trustStatus)
+        self.onlineState = try container.decode(DeviceOnlineState.self, forKey: .onlineState)
+        self.lastSeen = try container.decode(Date.self, forKey: .lastSeen)
+        self.isThisDevice = try container.decode(Bool.self, forKey: .isThisDevice)
+        self.ipAddress = try container.decodeIfPresent(String.self, forKey: .ipAddress)
+        self.port = try container.decodeIfPresent(UInt16.self, forKey: .port)
+        self.defaultPermissions = try container.decode(RemoteSessionPermissions.self, forKey: .defaultPermissions)
+        self.connectionCandidates = try container.decodeIfPresent([ConnectionCandidate].self, forKey: .connectionCandidates) ?? []
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(platform, forKey: .platform)
+        try container.encode(capabilities, forKey: .capabilities)
+        try container.encode(publicKeyData, forKey: .publicKeyData)
+        try container.encode(trustStatus, forKey: .trustStatus)
+        try container.encode(onlineState, forKey: .onlineState)
+        try container.encode(lastSeen, forKey: .lastSeen)
+        try container.encode(isThisDevice, forKey: .isThisDevice)
+        try container.encode(ipAddress, forKey: .ipAddress)
+        try container.encode(port, forKey: .port)
+        try container.encode(defaultPermissions, forKey: .defaultPermissions)
+        try container.encode(connectionCandidates, forKey: .connectionCandidates)
     }
 
     public static func == (lhs: Device, rhs: Device) -> Bool {

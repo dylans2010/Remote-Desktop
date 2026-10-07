@@ -1,5 +1,6 @@
 # Build output & artifacts
 build/
+.build/
 DerivedData/
 
 # User-specific Xcode data

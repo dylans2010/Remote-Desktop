@@ -8,19 +8,22 @@ public struct MacDiagnosticsView: View {
     public let peerName: String
     public let isHost: Bool
     public let transportDiagnostics: TransportDiagnostics
+    public let connectionDiagnostics: ConnectionDiagnosticsSnapshot
 
     public init(
         metrics: MediaHealthMetrics,
         permissions: RemoteSessionPermissions,
         peerName: String,
         isHost: Bool = false,
-        transportDiagnostics: TransportDiagnostics? = nil
+        transportDiagnostics: TransportDiagnostics? = nil,
+        connectionDiagnostics: ConnectionDiagnosticsSnapshot? = nil
     ) {
         self.metrics = metrics
         self.permissions = permissions
         self.peerName = peerName
         self.isHost = isHost
         self.transportDiagnostics = transportDiagnostics ?? RemoteSessionManager.shared.activeTransport?.diagnostics ?? TransportDiagnostics()
+        self.connectionDiagnostics = connectionDiagnostics ?? RemoteSessionManager.shared.connectionDiagnosticsSnapshot(peerName: peerName)
     }
 
     public var body: some View {
@@ -41,44 +44,95 @@ public struct MacDiagnosticsView: View {
 
             Divider()
 
-            // Pipeline Diagnostic Assessment Banner
-            let diagnosticStage = metrics.diagnosePipeline(isHost: isHost)
-            HStack(spacing: 12) {
-                Image(systemName: diagnosticStage == .healthy ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .foregroundColor(diagnosticStage == .healthy ? .green : .orange)
-                    .font(.title2)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(diagnosticStage == .healthy ? "Media Pipeline Healthy" : "Pipeline Attention Needed")
-                        .font(.headline)
-                    Text(diagnosticStage.rawValue)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(8)
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Developer Connection Diagnostics (Requirement 13)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Connection Diagnostics")
+                                .font(.headline)
+                            Spacer()
+                            Text("DEVELOPER TELEMETRY")
+                                .font(.system(size: 9, weight: .bold))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.15))
+                                .foregroundColor(.blue)
+                                .cornerRadius(4)
+                        }
 
-            // Transport Layer Diagnostics (Requirement 16)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Transport Lifecycle Diagnostics")
-                    .font(.headline)
+                        Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 8) {
+                            GridRow {
+                                metricItem(title: "Peer", value: connectionDiagnostics.peerName)
+                                metricItem(title: "Device Identity", value: connectionDiagnostics.deviceIdentityStatus)
+                            }
+                            GridRow {
+                                metricItem(title: "Pairing", value: connectionDiagnostics.pairingStatus)
+                                metricItem(title: "Endpoint", value: connectionDiagnostics.endpoint)
+                            }
+                            GridRow {
+                                metricItem(title: "Endpoint Source", value: connectionDiagnostics.endpointSource)
+                                metricItem(title: "Reachability", value: connectionDiagnostics.reachability)
+                            }
+                            GridRow {
+                                metricItem(title: "Transport", value: connectionDiagnostics.transportState)
+                                metricItem(title: "Handshake", value: connectionDiagnostics.handshakeState)
+                            }
+                            GridRow {
+                                metricItem(title: "Authentication", value: connectionDiagnostics.authState)
+                                metricItem(title: "Session", value: connectionDiagnostics.sessionState)
+                            }
+                        }
 
-                Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 8) {
-                    GridRow {
-                        metricItem(title: "Transport State", value: transportDiagnostics.state.description)
-                        metricItem(title: "Messages Sent / Recv", value: "\(transportDiagnostics.messagesSent) / \(transportDiagnostics.messagesReceived)")
+                        if !connectionDiagnostics.localPath.isEmpty {
+                            Text("Local Route: \(connectionDiagnostics.localPath)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
                     }
-                    GridRow {
-                        metricItem(title: "Bytes Sent / Recv", value: "\(formatBytes(transportDiagnostics.bytesSent)) / \(formatBytes(transportDiagnostics.bytesReceived))")
-                        metricItem(title: "Round Trip Time (RTT)", value: "\(Int(metrics.rttMs)) ms")
+                    .padding(10)
+                    .background(Color(NSColor.controlBackgroundColor).opacity(0.8))
+                    .cornerRadius(8)
+
+                    // Pipeline Diagnostic Assessment Banner
+                    let diagnosticStage = metrics.diagnosePipeline(isHost: isHost)
+                    HStack(spacing: 12) {
+                        Image(systemName: diagnosticStage == .healthy ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .foregroundColor(diagnosticStage == .healthy ? .green : .orange)
+                            .font(.title2)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(diagnosticStage == .healthy ? "Media Pipeline Healthy" : "Pipeline Attention Needed")
+                                .font(.headline)
+                            Text(diagnosticStage.rawValue)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
-                }
-            }
-            .padding(10)
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
-            .cornerRadius(8)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(8)
+
+                    // Transport Layer Diagnostics (Requirement 16)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Transport Lifecycle Diagnostics")
+                            .font(.headline)
+
+                        Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 8) {
+                            GridRow {
+                                metricItem(title: "Transport State", value: transportDiagnostics.state.description)
+                                metricItem(title: "Messages Sent / Recv", value: "\(transportDiagnostics.messagesSent) / \(transportDiagnostics.messagesReceived)")
+                            }
+                            GridRow {
+                                metricItem(title: "Bytes Sent / Recv", value: "\(formatBytes(transportDiagnostics.bytesSent)) / \(formatBytes(transportDiagnostics.bytesReceived))")
+                                metricItem(title: "Round Trip Time (RTT)", value: "\(Int(metrics.rttMs)) ms")
+                            }
+                        }
+                    }
+                    .padding(10)
+                    .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
+                    .cornerRadius(8)
 
             // Media Metrics Grid
             VStack(alignment: .leading, spacing: 8) {
@@ -132,13 +186,17 @@ public struct MacDiagnosticsView: View {
                     permPill(title: "Annotations", allowed: permissions.annotation)
                     permPill(title: "Clipboard", allowed: permissions.clipboard)
                 }
+                .padding(.vertical, 4)
             }
-
-            Spacer()
         }
-        .padding(20)
-        .frame(width: 540, height: 560)
+        .padding(.vertical, 4)
     }
+
+    Spacer(minLength: 0)
+}
+.padding(20)
+.frame(width: 560, height: 620)
+}
 
     private func formatBytes(_ bytes: UInt64) -> String {
         if bytes >= 1024 * 1024 {

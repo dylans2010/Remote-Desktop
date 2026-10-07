@@ -8,24 +8,43 @@ public struct IOSDiagnosticsView: View {
     public let peerName: String
     public let isHost: Bool
     public let transportDiagnostics: TransportDiagnostics
+    public let connectionDiagnostics: ConnectionDiagnosticsSnapshot
 
     public init(
         metrics: MediaHealthMetrics,
         permissions: RemoteSessionPermissions,
         peerName: String,
         isHost: Bool = false,
-        transportDiagnostics: TransportDiagnostics? = nil
+        transportDiagnostics: TransportDiagnostics? = nil,
+        connectionDiagnostics: ConnectionDiagnosticsSnapshot? = nil
     ) {
         self.metrics = metrics
         self.permissions = permissions
         self.peerName = peerName
         self.isHost = isHost
         self.transportDiagnostics = transportDiagnostics ?? RemoteSessionManager.shared.activeTransport?.diagnostics ?? TransportDiagnostics()
+        self.connectionDiagnostics = connectionDiagnostics ?? RemoteSessionManager.shared.connectionDiagnosticsSnapshot(peerName: peerName)
     }
 
     public var body: some View {
         NavigationStack {
             List {
+                Section(header: Text("Connection Diagnostics")) {
+                    row(title: "Peer", value: connectionDiagnostics.peerName)
+                    row(title: "Device Identity", value: connectionDiagnostics.deviceIdentityStatus)
+                    row(title: "Pairing", value: connectionDiagnostics.pairingStatus)
+                    row(title: "Endpoint", value: connectionDiagnostics.endpoint)
+                    row(title: "Endpoint Source", value: connectionDiagnostics.endpointSource)
+                    row(title: "Reachability", value: connectionDiagnostics.reachability)
+                    row(title: "Transport", value: connectionDiagnostics.transportState)
+                    row(title: "Handshake", value: connectionDiagnostics.handshakeState)
+                    row(title: "Authentication", value: connectionDiagnostics.authState)
+                    row(title: "Session", value: connectionDiagnostics.sessionState)
+                    if !connectionDiagnostics.localPath.isEmpty {
+                        row(title: "Local Route", value: connectionDiagnostics.localPath)
+                    }
+                }
+
                 Section(header: Text("Pipeline Assessment")) {
                     let stage = metrics.diagnosePipeline(isHost: isHost)
                     HStack(spacing: 12) {
