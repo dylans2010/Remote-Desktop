@@ -25,6 +25,9 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, @unchecked
     private var reconnectAttempts = 0
     private let maxReconnectAttempts = 5
     private let lock = NSLock()
+    #if os(macOS)
+    private var activeCaptureEngine: ScreenCaptureEngine?
+    #endif
 
     private func withStateLock<T>(_ block: () -> T) -> T {
         lock.lock()
@@ -55,6 +58,9 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, @unchecked
         Task {
             let captureEngine = ScreenCaptureEngine()
             captureEngine.delegate = self
+            withStateLock {
+                self.activeCaptureEngine = captureEngine
+            }
             try? await captureEngine.startCapture()
         }
         #elseif os(iOS)
@@ -98,6 +104,10 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, @unchecked
                 RemoteInputEngine.shared.injectInputEvent(event)
             }
             #endif
+        case .sessionOffer:
+            if let payload = message.payload {
+                delegate?.remoteSession(self, didReceiveFrame: payload, timestamp: message.timestamp.timeIntervalSince1970)
+            }
         case .clipboardSync:
             if let payload = message.payload, let clipboardPayload = try? JSONDecoder().decode(ClipboardPayload.self, from: payload) {
                 ClipboardSyncManager.shared.applyRemoteClipboard(clipboardPayload)
@@ -167,6 +177,19 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, @unchecked
 
     /// Terminate current active remote desktop session.
     public func endSession() {
+        #if os(macOS)
+        let capture = withStateLock { () -> ScreenCaptureEngine? in
+            let c = self.activeCaptureEngine
+            self.activeCaptureEngine = nil
+            return c
+        }
+        Task {
+            try? await capture?.stopCapture()
+        }
+        #elseif os(iOS)
+        iOSBroadcastManager.shared.stopBroadcast()
+        #endif
+
         withStateLock {
             stopHeartbeat()
             activeTransport?.disconnect()

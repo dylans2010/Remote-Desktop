@@ -16,6 +16,12 @@ public final class BonjourDiscoveryManager: @unchecked Sendable {
     public var onPeerDiscovered: ((Device) -> Void)?
     public var onPeerLost: ((String) -> Void)?
 
+    public func currentDiscoveredDevices() -> [Device] {
+        lock.lock()
+        defer { lock.unlock() }
+        return Array(discoveredPeersMap.values)
+    }
+
     public init() {}
 
     /// Start advertising this device on the local network via Bonjour.
@@ -33,6 +39,8 @@ public final class BonjourDiscoveryManager: @unchecked Sendable {
             let txtRecord: [String: String] = [
                 "id": identity.deviceID,
                 "name": identity.deviceName,
+                "platform": identity.platform.rawValue,
+                "port": String(port),
                 "pk": identity.publicKeyRepresentation.base64EncodedString()
             ]
 
@@ -120,22 +128,38 @@ public final class BonjourDiscoveryManager: @unchecked Sendable {
 
         var deviceID = name
         var publicKeyData = Data()
+        var discoveredPlatform = DevicePlatform.macOS
+        var peerPort: UInt16? = 58900
+        var ipAddress: String? = nil
 
         if case .bonjour(let txtRecord) = result.metadata {
             if let id = txtRecord["id"] { deviceID = id }
             if let pkString = txtRecord["pk"], let data = Data(base64Encoded: pkString) {
                 publicKeyData = data
             }
+            if let platStr = txtRecord["platform"], let parsedPlat = DevicePlatform(rawValue: platStr) {
+                discoveredPlatform = parsedPlat
+            }
+            if let portStr = txtRecord["port"], let parsedPort = UInt16(portStr) {
+                peerPort = parsedPort
+            }
+        }
+
+        // Endpoint host resolution or service host
+        if case .service(let serviceName, let type, let domain, _) = result.endpoint {
+            ipAddress = "\(serviceName).\(type).\(domain)"
         }
 
         let device = Device(
             id: deviceID,
             name: name,
-            platform: .macOS,
+            platform: discoveredPlatform,
             publicKeyData: publicKeyData,
             trustStatus: TrustModel.shared.isTrusted(deviceID: deviceID) ? .trusted : .untrusted,
             onlineState: .online,
-            lastSeen: Date()
+            lastSeen: Date(),
+            ipAddress: ipAddress,
+            port: peerPort
         )
 
         lock.lock()

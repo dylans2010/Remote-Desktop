@@ -74,12 +74,20 @@ public struct MacContentView: View {
     }
 
     private func connectToDevice(_ device: Device) {
-        guard ScreenRecordingPermissionManager.shared.isAuthorized else {
+        // If connecting to another device (e.g. iOS or Mac) as viewer, permission is optional;
+        // only request if local screen recording is required for hosting
+        if device.platform == .macOS && !ScreenRecordingPermissionManager.shared.isAuthorized {
             ScreenRecordingPermissionManager.shared.requestPermission()
-            return
         }
 
         let sessionVM = MacSessionViewModel(peerName: device.name)
+        sessionVM.onDisconnect = { [weak sessionVM] in
+            DispatchQueue.main.async {
+                if self.activeSessionViewModel === sessionVM {
+                    self.activeSessionViewModel = nil
+                }
+            }
+        }
         self.activeSessionViewModel = sessionVM
 
         Task {

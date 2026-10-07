@@ -60,6 +60,13 @@ public struct IOSContentView: View {
 
     private func connectToDevice(_ device: Device) {
         let sessionVM = IOSSessionViewModel(peerName: device.name)
+        sessionVM.onDisconnect = { [weak sessionVM] in
+            DispatchQueue.main.async {
+                if self.activeSessionViewModel === sessionVM {
+                    self.activeSessionViewModel = nil
+                }
+            }
+        }
         self.activeSessionViewModel = sessionVM
 
         Task {

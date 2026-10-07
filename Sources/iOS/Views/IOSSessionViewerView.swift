@@ -87,6 +87,8 @@ public final class IOSSessionViewModel: ObservableObject, RemoteSessionDelegate,
     @Published public var latencyMs: Double = 31.0
     @Published public var isRelayed: Bool = false
 
+    public var onDisconnect: (() -> Void)?
+
     public init(peerName: String) {
         self.peerName = peerName
         RemoteSessionManager.shared.delegate = self
@@ -99,6 +101,9 @@ public final class IOSSessionViewModel: ObservableObject, RemoteSessionDelegate,
 
     public func disconnect() {
         RemoteSessionManager.shared.endSession()
+        DispatchQueue.main.async { [weak self] in
+            self?.onDisconnect?()
+        }
     }
 
     // MARK: - RemoteSessionDelegate
@@ -106,6 +111,9 @@ public final class IOSSessionViewModel: ObservableObject, RemoteSessionDelegate,
     public func remoteSession(_ session: RemoteSessionManager, didChangeState state: TransportConnectionState) {
         DispatchQueue.main.async {
             self.connectionState = state
+            if state == .disconnected {
+                self.onDisconnect?()
+            }
         }
     }
 

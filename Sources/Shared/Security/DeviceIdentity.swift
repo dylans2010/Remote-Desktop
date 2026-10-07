@@ -7,12 +7,13 @@ import Security
 public final class DeviceIdentity: Codable, @unchecked Sendable {
     public let deviceID: String
     public let deviceName: String
+    public let platform: DevicePlatform
     public let publicKeyRepresentation: Data
 
     private let privateKey: Curve25519.Signing.PrivateKey
 
     /// Initialize by generating a new identity or loading existing keys.
-    public init(deviceName: String? = nil, privateKey: Curve25519.Signing.PrivateKey? = nil) {
+    public init(deviceName: String? = nil, platform: DevicePlatform? = nil, privateKey: Curve25519.Signing.PrivateKey? = nil) {
         let key = privateKey ?? Curve25519.Signing.PrivateKey()
         self.privateKey = key
         self.publicKeyRepresentation = key.publicKey.rawRepresentation
@@ -23,12 +24,16 @@ public final class DeviceIdentity: Codable, @unchecked Sendable {
 
         #if os(macOS)
         let defaultName = Host.current().localizedName ?? "Mac"
+        let defaultPlatform = DevicePlatform.macOS
         #elseif os(iOS)
-        let defaultName = "iPhone/iPad"
+        let defaultName = "iPhone"
+        let defaultPlatform = DevicePlatform.iOS
         #else
         let defaultName = "Apple Device"
+        let defaultPlatform = DevicePlatform.unknown
         #endif
         self.deviceName = deviceName ?? defaultName
+        self.platform = platform ?? defaultPlatform
     }
 
     /// Export private key data for secure Keychain storage.
@@ -60,6 +65,7 @@ public final class DeviceIdentity: Codable, @unchecked Sendable {
     enum CodingKeys: String, CodingKey {
         case deviceID
         case deviceName
+        case platform
         case publicKeyRepresentation
         case privateKeyData
     }
@@ -68,6 +74,7 @@ public final class DeviceIdentity: Codable, @unchecked Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.deviceID = try container.decode(String.self, forKey: .deviceID)
         self.deviceName = try container.decode(String.self, forKey: .deviceName)
+        self.platform = try container.decodeIfPresent(DevicePlatform.self, forKey: .platform) ?? .macOS
         self.publicKeyRepresentation = try container.decode(Data.self, forKey: .publicKeyRepresentation)
         let privateData = try container.decode(Data.self, forKey: .privateKeyData)
         self.privateKey = try Curve25519.Signing.PrivateKey(rawRepresentation: privateData)
@@ -77,6 +84,7 @@ public final class DeviceIdentity: Codable, @unchecked Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(deviceID, forKey: .deviceID)
         try container.encode(deviceName, forKey: .deviceName)
+        try container.encode(platform, forKey: .platform)
         try container.encode(publicKeyRepresentation, forKey: .publicKeyRepresentation)
         try container.encode(privateKey.rawRepresentation, forKey: .privateKeyData)
     }
