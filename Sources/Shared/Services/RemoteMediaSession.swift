@@ -1,13 +1,19 @@
 import Foundation
+import CoreGraphics
 
 /// Delegate protocol for remote media session frame rendering and health telemetry.
 public protocol RemoteMediaSessionDelegate: AnyObject {
+    func mediaSession(_ session: RemoteMediaSession, didReceiveDecodedImage image: CGImage, timestamp: Double)
     func mediaSession(_ session: RemoteMediaSession, didReceiveDecodedFrame frameData: Data, timestamp: Double)
     func mediaSession(_ session: RemoteMediaSession, didUpdateHealth metrics: MediaHealthMetrics)
     func mediaSessionDidStall(_ session: RemoteMediaSession, stage: PipelineDiagnosticStage)
 }
 
-/// Explicit media session abstraction managing real-time video streaming, health telemetry, and frame pacing.
+public extension RemoteMediaSessionDelegate {
+    func mediaSession(_ session: RemoteMediaSession, didReceiveDecodedFrame frameData: Data, timestamp: Double) {}
+}
+
+/// Explicit media session abstraction managing real-time video streaming, hardware decoding, health telemetry, and frame pacing.
 public final class RemoteMediaSession: @unchecked Sendable {
     public enum SessionRole: String, Codable, Sendable {
         case host          // Streams screen to remote viewer
@@ -25,14 +31,29 @@ public final class RemoteMediaSession: @unchecked Sendable {
     private var metrics = MediaHealthMetrics()
     private let lock = NSLock()
 
+    // Hardware decoder for controller
+    private let videoDecoder = VideoHardwareDecoder()
+
     // FPS calculation tracking
     private var frameCountInInterval: Int = 0
     private var lastFpsCalculationTime: Date = Date()
     private var lastFrameReceivedDate: Date?
+    private var watchdogTimer: Timer?
 
     private var transportSender: ((Data, Double) async throws -> Void)?
 
-    private init() {}
+    private init() {
+        videoDecoder.onDecodedFrame = { [weak self] cgImage, timestamp in
+            guard let self = self else { return }
+            self.lock.lock()
+            self.metrics.framesDecoded += 1
+            let currentMetrics = self.metrics
+            self.lock.unlock()
+
+            self.delegate?.mediaSession(self, didReceiveDecodedImage: cgImage, timestamp: timestamp)
+            self.delegate?.mediaSession(self, didUpdateHealth: currentMetrics)
+        }
+    }
 
     /// Start a media session in a specific role (host or controller).
     public func start(role: SessionRole, transportSender: ((Data, Double) async throws -> Void)? = nil) {
@@ -42,21 +63,29 @@ public final class RemoteMediaSession: @unchecked Sendable {
         self.isPaused = false
         self.transportSender = transportSender
         self.metrics = MediaHealthMetrics()
+        self.metrics.codec = "H.264 / VideoToolbox Hardware"
         self.frameCountInInterval = 0
         self.lastFpsCalculationTime = Date()
         self.lastFrameReceivedDate = nil
         lock.unlock()
 
         print("[RemoteMediaSession] Started media session with role: \(role.rawValue)")
+
+        if role == .controller {
+            startWatchdog()
+        }
     }
 
     /// Stop and clean up active media session.
     public func stop() {
+        stopWatchdog()
+
         lock.lock()
         self.isRunning = false
         self.isPaused = false
         self.transportSender = nil
         self.role = nil
+        videoDecoder.invalidate()
         lock.unlock()
 
         print("[RemoteMediaSession] Stopped media session")
@@ -116,7 +145,6 @@ public final class RemoteMediaSession: @unchecked Sendable {
         }
 
         metrics.framesReceived += 1
-        metrics.framesDecoded += 1
         metrics.lastFrameTimestamp = timestamp
         lastFrameReceivedDate = Date()
         frameCountInInterval += 1
@@ -138,6 +166,11 @@ public final class RemoteMediaSession: @unchecked Sendable {
 
         delegate?.mediaSession(self, didReceiveDecodedFrame: frameData, timestamp: timestamp)
         delegate?.mediaSession(self, didUpdateHealth: updatedMetrics)
+
+        // Pass to hardware decoder
+        if let packet = VideoFramePacket.deserialize(from: frameData) {
+            videoDecoder.decode(packet: packet)
+        }
     }
 
     /// Controller records that a decoded frame was successfully drawn to display.
@@ -167,5 +200,36 @@ public final class RemoteMediaSession: @unchecked Sendable {
         defer { lock.unlock() }
         let isHost = role == .host
         return metrics.diagnosePipeline(isHost: isHost)
+    }
+
+    // MARK: - Stall Watchdog
+
+    private func startWatchdog() {
+        DispatchQueue.main.async { [weak self] in
+            self?.watchdogTimer?.invalidate()
+            self?.watchdogTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+                guard let self = self else { return }
+                let (running, receivedCount, lastDate) = self.lock.withLock {
+                    (self.isRunning, self.metrics.framesReceived, self.lastFrameReceivedDate)
+                }
+
+                guard running else { return }
+
+                if receivedCount == 0 {
+                    let stage = self.diagnosePipeline()
+                    self.delegate?.mediaSessionDidStall(self, stage: stage)
+                } else if let last = lastDate, Date().timeIntervalSince(last) > 5.0 {
+                    let stage = self.diagnosePipeline()
+                    self.delegate?.mediaSessionDidStall(self, stage: stage)
+                }
+            }
+        }
+    }
+
+    private func stopWatchdog() {
+        DispatchQueue.main.async { [weak self] in
+            self?.watchdogTimer?.invalidate()
+            self?.watchdogTimer = nil
+        }
     }
 }

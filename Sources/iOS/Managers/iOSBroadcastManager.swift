@@ -21,12 +21,15 @@ public final class iOSBroadcastManager: NSObject, @unchecked Sendable {
     public var onFrameCaptured: ((Data, Double) -> Void)?
 
     private let lock = NSLock()
-    private let ciContext = CIContext(options: [.useSoftwareRenderer: false, .cacheIntermediates: false])
-    private let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
-    private var isCompressing = false
+    private let videoEncoder = VideoHardwareEncoder()
 
     private override init() {
         super.init()
+        videoEncoder.onEncodedPacket = { [weak self] packet in
+            guard let self = self else { return }
+            let serialized = packet.serialize()
+            self.onFrameCaptured?(serialized, packet.timestamp)
+        }
     }
 
     /// Request start of in-app screen recording broadcast on iOS/iPadOS.
@@ -40,6 +43,8 @@ public final class iOSBroadcastManager: NSObject, @unchecked Sendable {
         lock.lock()
         broadcastState = .starting
         lock.unlock()
+
+        _ = videoEncoder.setup(width: 1170, height: 2532)
 
         recorder.startCapture(handler: { [weak self] sampleBuffer, sampleType, error in
             guard let self = self else { return }
@@ -57,30 +62,8 @@ public final class iOSBroadcastManager: NSObject, @unchecked Sendable {
 
             RemoteMediaSession.shared.recordCapturedFrame()
 
-            self.lock.lock()
-            if self.isCompressing {
-                self.lock.unlock()
-                return
-            }
-            self.isCompressing = true
-            self.lock.unlock()
-
             let timeStamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-
-            autoreleasepool {
-                let ciImage = CIImage(cvPixelBuffer: imageBuffer)
-                let options: [CIImageRepresentationOption: Any] = [
-                    CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String): 0.6
-                ]
-
-                if let jpegData = self.ciContext.jpegRepresentation(of: ciImage, colorSpace: self.srgbColorSpace, options: options) {
-                    self.onFrameCaptured?(jpegData, timeStamp)
-                }
-            }
-
-            self.lock.lock()
-            self.isCompressing = false
-            self.lock.unlock()
+            self.videoEncoder.encode(pixelBuffer: imageBuffer, timestamp: timeStamp)
         }, completionHandler: { [weak self] error in
             guard let self = self else { return }
             self.lock.lock()
@@ -97,6 +80,7 @@ public final class iOSBroadcastManager: NSObject, @unchecked Sendable {
 
     /// Stop active broadcast session.
     public func stopBroadcast() {
+        videoEncoder.invalidate()
         let recorder = RPScreenRecorder.shared()
         recorder.stopCapture { [weak self] error in
             guard let self = self else { return }

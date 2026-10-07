@@ -145,6 +145,83 @@ public struct ProtocolEngine {
     }
 }
 
+// MARK: - Pairing Payloads
+
+/// Payload sent by a device wishing to pair with a host using an entered pairing code.
+public struct PairingRequestPayload: Codable, Sendable {
+    public let candidateCode: String
+    public let requesterID: String
+    public let requesterName: String
+    public let requesterPlatform: DevicePlatform
+    public let requesterPublicKey: Data
+    public let requesterChallenge: Data
+    public let requesterCapabilities: RemoteCapabilities
+
+    public init(
+        candidateCode: String,
+        requesterID: String,
+        requesterName: String,
+        requesterPlatform: DevicePlatform,
+        requesterPublicKey: Data,
+        requesterChallenge: Data,
+        requesterCapabilities: RemoteCapabilities
+    ) {
+        self.candidateCode = candidateCode
+        self.requesterID = requesterID
+        self.requesterName = requesterName
+        self.requesterPlatform = requesterPlatform
+        self.requesterPublicKey = requesterPublicKey
+        self.requesterChallenge = requesterChallenge
+        self.requesterCapabilities = requesterCapabilities
+    }
+}
+
+/// Payload response from host for a pairing request.
+public struct PairingResponsePayload: Codable, Sendable {
+    public let accepted: Bool
+    public let rejectionReason: String?
+    public let hostID: String?
+    public let hostName: String?
+    public let hostPlatform: DevicePlatform?
+    public let hostPublicKey: Data?
+    public let hostSignature: Data?
+    public let hostChallenge: Data?
+    public let hostCapabilities: RemoteCapabilities?
+
+    public init(
+        accepted: Bool,
+        rejectionReason: String? = nil,
+        hostID: String? = nil,
+        hostName: String? = nil,
+        hostPlatform: DevicePlatform? = nil,
+        hostPublicKey: Data? = nil,
+        hostSignature: Data? = nil,
+        hostChallenge: Data? = nil,
+        hostCapabilities: RemoteCapabilities? = nil
+    ) {
+        self.accepted = accepted
+        self.rejectionReason = rejectionReason
+        self.hostID = hostID
+        self.hostName = hostName
+        self.hostPlatform = hostPlatform
+        self.hostPublicKey = hostPublicKey
+        self.hostSignature = hostSignature
+        self.hostChallenge = hostChallenge
+        self.hostCapabilities = hostCapabilities
+    }
+}
+
+/// Payload sent by requester to finalize mutual authentication.
+public struct PairingConfirmPayload: Codable, Sendable {
+    public let requesterID: String
+    public let requesterSignature: Data
+
+    public init(requesterID: String, requesterSignature: Data) {
+        self.requesterID = requesterID
+        self.requesterSignature = requesterSignature
+    }
+}
+
 // MARK: - Negotiation & Handshake Payloads
 
 /// Payload for incoming session connection requests from a controller to a host.
@@ -154,19 +231,22 @@ public struct ConnectionRequestPayload: Codable, Sendable {
     public let requesterPlatform: DevicePlatform
     public let requestedPermissions: RemoteSessionPermissions
     public let capabilities: RemoteCapabilities
+    public let challenge: Data?
 
     public init(
         requesterID: String,
         requesterName: String,
         requesterPlatform: DevicePlatform,
         requestedPermissions: RemoteSessionPermissions,
-        capabilities: RemoteCapabilities
+        capabilities: RemoteCapabilities,
+        challenge: Data? = nil
     ) {
         self.requesterID = requesterID
         self.requesterName = requesterName
         self.requesterPlatform = requesterPlatform
         self.requestedPermissions = requestedPermissions
         self.capabilities = capabilities
+        self.challenge = challenge
     }
 }
 
@@ -178,6 +258,8 @@ public struct ConnectionResponsePayload: Codable, Sendable {
     public let grantedPermissions: RemoteSessionPermissions
     public let hostCapabilities: RemoteCapabilities
     public let rejectionReason: String?
+    public let hostSignature: Data?
+    public let hostChallenge: Data?
 
     public init(
         approved: Bool,
@@ -185,7 +267,9 @@ public struct ConnectionResponsePayload: Codable, Sendable {
         hostName: String,
         grantedPermissions: RemoteSessionPermissions,
         hostCapabilities: RemoteCapabilities,
-        rejectionReason: String? = nil
+        rejectionReason: String? = nil,
+        hostSignature: Data? = nil,
+        hostChallenge: Data? = nil
     ) {
         self.approved = approved
         self.hostID = hostID
@@ -193,6 +277,8 @@ public struct ConnectionResponsePayload: Codable, Sendable {
         self.grantedPermissions = grantedPermissions
         self.hostCapabilities = hostCapabilities
         self.rejectionReason = rejectionReason
+        self.hostSignature = hostSignature
+        self.hostChallenge = hostChallenge
     }
 }
 

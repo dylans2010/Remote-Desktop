@@ -50,18 +50,16 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, @unchecked Sen
     private(set) public var isCapturing: Bool = false
     private let lock = NSLock()
 
-    // Reusable GPU Metal-accelerated CoreImage context (allocated once)
-    private let ciContext = CIContext(options: [
-        .useSoftwareRenderer: false,
-        .cacheIntermediates: false
-    ])
-    private let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
-
-    // Frame pacing flag to prevent buffer accumulation
-    private var isCompressing = false
+    // Hardware H.264 video encoder
+    private let videoEncoder = VideoHardwareEncoder()
 
     public override init() {
         super.init()
+        videoEncoder.onEncodedPacket = { [weak self] packet in
+            guard let self = self else { return }
+            let serialized = packet.serialize()
+            self.delegate?.frameCaptureEngine(self, didCaptureFrame: serialized, timestamp: packet.timestamp)
+        }
     }
 
     /// Retrieve list of active system displays via ScreenCaptureKit.
@@ -106,6 +104,8 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, @unchecked Sen
         streamConfig.showsCursor = true
         streamConfig.pixelFormat = kCVPixelFormatType_32BGRA
 
+        _ = videoEncoder.setup(width: Int32(streamConfig.width), height: Int32(streamConfig.height))
+
         let newStream = SCStream(filter: filter, configuration: streamConfig, delegate: nil)
         try newStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue.global(qos: .userInteractive))
         try await newStream.startCapture()
@@ -128,6 +128,7 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, @unchecked Sen
         let activeStream = self.stream
         self.stream = nil
         self.isCapturing = false
+        videoEncoder.invalidate()
         return activeStream
     }
 
@@ -149,30 +150,7 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, @unchecked Sen
         // Track frame captured in media health telemetry
         RemoteMediaSession.shared.recordCapturedFrame()
 
-        // Frame pacing: drop this frame if previous frame is still compressing to ensure zero lag
-        lock.lock()
-        if isCompressing {
-            lock.unlock()
-            return
-        }
-        isCompressing = true
-        lock.unlock()
-
         let timeStamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-
-        autoreleasepool {
-            let ciImage = CIImage(cvPixelBuffer: imageBuffer)
-            let options: [CIImageRepresentationOption: Any] = [
-                CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String): 0.65
-            ]
-
-            if let jpegData = ciContext.jpegRepresentation(of: ciImage, colorSpace: srgbColorSpace, options: options) {
-                delegate?.frameCaptureEngine(self, didCaptureFrame: jpegData, timestamp: timeStamp)
-            }
-        }
-
-        lock.lock()
-        isCompressing = false
-        lock.unlock()
+        videoEncoder.encode(pixelBuffer: imageBuffer, timestamp: timeStamp)
     }
 }

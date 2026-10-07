@@ -17,7 +17,7 @@ public struct MacSessionViewerView: View {
             HStack(spacing: 12) {
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(viewModel.connectionState == .connected ? Color.green : Color.orange)
+                        .fill(viewModel.connectionState == .connected ? Color.green : (viewModel.isErrorState ? Color.red : Color.orange))
                         .frame(width: 10, height: 10)
                     Text(viewModel.peerName)
                         .font(.headline)
@@ -34,78 +34,71 @@ public struct MacSessionViewerView: View {
 
                 Spacer()
 
-                // Tool Palette
-                HStack(spacing: 8) {
-                    // Control mode indicators
-                    if viewModel.permissions.mouse {
-                        Image(systemName: "cursorarrow.rays")
-                            .foregroundColor(.blue)
-                            .help("Mouse Control Enabled")
-                    }
-                    if viewModel.permissions.keyboard {
-                        Image(systemName: "keyboard")
-                            .foregroundColor(.blue)
-                            .help("Keyboard Control Enabled")
-                    }
+                // Tool Palette (Available only when connected)
+                if viewModel.connectionState == .connected {
+                    HStack(spacing: 8) {
+                        if viewModel.permissions.mouse {
+                            Image(systemName: "cursorarrow.rays")
+                                .foregroundColor(.blue)
+                                .help("Mouse Control Enabled")
+                        }
+                        if viewModel.permissions.keyboard {
+                            Image(systemName: "keyboard")
+                                .foregroundColor(.blue)
+                                .help("Keyboard Control Enabled")
+                        }
 
-                    Divider().frame(height: 18)
+                        Divider().frame(height: 18)
 
-                    // Drawing & Annotation Toggle (if authorized)
-                    if viewModel.permissions.annotation {
-                        if isAnnotationModeActive {
+                        if viewModel.permissions.annotation {
                             Button(action: { isAnnotationModeActive.toggle() }) {
-                                Label("Draw", systemImage: "pencil.tip.crop.circle.badge.plus.fill")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .help("Toggle Drawing & Annotations")
-                        } else {
-                            Button(action: { isAnnotationModeActive.toggle() }) {
-                                Label("Draw", systemImage: "pencil.tip")
+                                Label("Draw", systemImage: isAnnotationModeActive ? "pencil.tip.crop.circle.badge.plus.fill" : "pencil.tip")
                             }
                             .buttonStyle(.bordered)
+                            .tint(isAnnotationModeActive ? .accentColor : .secondary)
                             .help("Toggle Drawing & Annotations")
-                        }
 
-                        if isAnnotationModeActive {
-                            Picker("Tool", selection: $annotationTool) {
-                                ForEach(AnnotationTool.allCases, id: \.self) { tool in
-                                    Image(systemName: tool.systemImageName).tag(tool)
+                            if isAnnotationModeActive {
+                                Picker("Tool", selection: $annotationTool) {
+                                    ForEach(AnnotationTool.allCases, id: \.self) { tool in
+                                        Image(systemName: tool.systemImageName).tag(tool)
+                                    }
                                 }
-                            }
-                            .pickerStyle(.segmented)
-                            .frame(width: 130)
+                                .pickerStyle(.segmented)
+                                .frame(width: 130)
 
-                            Button(action: { viewModel.undoLastAnnotation() }) {
-                                Image(systemName: "arrow.uturn.backward")
-                            }
-                            .help("Undo Annotation")
+                                Button(action: { viewModel.undoLastAnnotation() }) {
+                                    Image(systemName: "arrow.uturn.backward")
+                                }
+                                .help("Undo Annotation")
 
-                            Button(action: { viewModel.clearAnnotations() }) {
-                                Image(systemName: "trash")
+                                Button(action: { viewModel.clearAnnotations() }) {
+                                    Image(systemName: "trash")
+                                }
+                                .help("Clear All Annotations")
                             }
-                            .help("Clear All Annotations")
                         }
-                    }
 
-                    Button(action: { viewModel.showDiagnostics = true }) {
-                        Image(systemName: "chart.bar.xaxis")
+                        Button(action: { viewModel.showFileTransferModal = true }) {
+                            Image(systemName: "arrow.up.doc")
+                        }
+                        .disabled(!viewModel.permissions.fileTransfer)
+                        .help("Send File")
                     }
-                    .help("Session Diagnostics")
-
-                    Button(action: { viewModel.showFileTransferModal = true }) {
-                        Image(systemName: "arrow.up.doc")
-                    }
-                    .disabled(!viewModel.permissions.fileTransfer)
-                    .help("Send File")
-
-                    // Prominent Disconnect Button
-                    Button(action: { viewModel.disconnect() }) {
-                        Text("Disconnect")
-                            .bold()
-                            .foregroundColor(.red)
-                    }
-                    .buttonStyle(.bordered)
                 }
+
+                Button(action: { viewModel.showDiagnostics = true }) {
+                    Image(systemName: "chart.bar.xaxis")
+                }
+                .help("Session Diagnostics")
+
+                // Prominent Disconnect / Leave Button
+                Button(action: { viewModel.disconnect() }) {
+                    Text(viewModel.isErrorState ? "Close" : "Disconnect")
+                        .bold()
+                        .foregroundColor(.red)
+                }
+                .buttonStyle(.bordered)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -118,7 +111,7 @@ public struct MacSessionViewerView: View {
                 ZStack {
                     Color.black
 
-                    if let image = viewModel.currentFrameImage {
+                    if let image = viewModel.currentFrameImage, viewModel.connectionState == .connected {
                         Image(nsImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
@@ -143,26 +136,83 @@ public struct MacSessionViewerView: View {
                                 viewModel.handleAnnotationAction(stroke: stroke, action: action, point: point)
                             }
                         )
+                    } else if viewModel.isErrorState {
+                        // Actionable Error View (Section 5, 26) - Stays visible instead of silently popping!
+                        VStack(spacing: 20) {
+                            Image(systemName: errorSystemIcon(for: viewModel.connectionState))
+                                .font(.system(size: 56))
+                                .foregroundColor(.red)
+
+                            VStack(spacing: 8) {
+                                Text(viewModel.connectionState.statusDescription)
+                                    .font(.title2)
+                                    .bold()
+                                    .foregroundColor(.white)
+
+                                Text(viewModel.errorMessage ?? defaultErrorDetail(for: viewModel.connectionState))
+                                    .font(.callout)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .frame(maxWidth: 480)
+                            }
+
+                            // Diagnostic summary
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Diagnostic Summary")
+                                    .font(.caption)
+                                    .bold()
+                                    .foregroundColor(.secondary)
+                                HStack(spacing: 20) {
+                                    Text("Capture: \(viewModel.connectionState == .captureUnavailable ? "Denied" : "OK")")
+                                    Text("Transport: \(viewModel.connectionState == .transportFailed ? "Failed" : "OK")")
+                                    Text("Frames Received: \(viewModel.healthMetrics.framesReceived)")
+                                }
+                                .font(.caption2)
+                                .foregroundColor(.white)
+                            }
+                            .padding(12)
+                            .background(Color.secondary.opacity(0.15))
+                            .cornerRadius(8)
+
+                            HStack(spacing: 16) {
+                                Button("Retry Connection") {
+                                    viewModel.retryConnection()
+                                }
+                                .buttonStyle(.borderedProminent)
+
+                                Button("Diagnostics") {
+                                    viewModel.showDiagnostics = true
+                                }
+                                .buttonStyle(.bordered)
+
+                                Button("Return to Devices") {
+                                    viewModel.disconnect()
+                                }
+                                .buttonStyle(.bordered)
+                                .foregroundColor(.red)
+                            }
+                        }
+                        .padding(32)
                     } else if viewModel.isStreamTimedOut {
-                        // Diagnostic Fallback for Blank Screen Timeout (Req 56)
+                        // Blank Screen Watchdog View (Section 15)
                         VStack(spacing: 16) {
                             Image(systemName: "video.slash.fill")
                                 .font(.system(size: 48))
                                 .foregroundColor(.orange)
 
-                            Text("Remote screen unavailable")
+                            Text("Screen stream failed")
                                 .font(.title2)
                                 .bold()
                                 .foregroundColor(.white)
 
-                            Text("The connection is established, but no video frames are being received from \(viewModel.peerName).")
+                            Text("The connection is authenticated, but no video frames are arriving from \(viewModel.peerName).")
                                 .font(.callout)
                                 .foregroundColor(.gray)
                                 .multilineTextAlignment(.center)
-                                .padding(.horizontal, 40)
+                                .frame(maxWidth: 460)
 
                             HStack(spacing: 16) {
-                                Button("Retry Connection") {
+                                Button("Retry Stream") {
                                     viewModel.retryStream()
                                 }
                                 .buttonStyle(.borderedProminent)
@@ -180,11 +230,23 @@ public struct MacSessionViewerView: View {
                             }
                         }
                     } else {
-                        VStack(spacing: 12) {
+                        // Connection Progress State (Section 5, 26)
+                        VStack(spacing: 16) {
                             ProgressView()
-                            Text(viewModel.connectionState == .reconnecting ? "Reconnecting to \(viewModel.peerName)..." : "Waiting for remote screen stream...")
+                                .controlSize(.large)
+                            Text(viewModel.connectionState.statusDescription)
+                                .font(.title3)
+                                .bold()
+                                .foregroundColor(.white)
+                            Text("Connecting to \(viewModel.peerName)...")
                                 .font(.callout)
                                 .foregroundColor(.gray)
+
+                            Button("Cancel") {
+                                viewModel.disconnect()
+                            }
+                            .buttonStyle(.bordered)
+                            .padding(.top, 12)
                         }
                     }
                 }
@@ -202,11 +264,40 @@ public struct MacSessionViewerView: View {
             )
         }
     }
+
+    private func errorSystemIcon(for state: SessionState) -> String {
+        switch state {
+        case .permissionDenied: return "hand.raised.fill"
+        case .captureUnavailable: return "video.slash.fill"
+        case .authenticationFailed: return "lock.slash.fill"
+        case .transportFailed: return "wifi.slash"
+        case .connectionTimeout: return "clock.badge.exclamationmark.fill"
+        default: return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private func defaultErrorDetail(for state: SessionState) -> String {
+        switch state {
+        case .permissionDenied:
+            return "The host declined your remote desktop request."
+        case .captureUnavailable:
+            return "Screen Recording permission is required on the host Mac in System Settings -> Privacy & Security -> Screen Recording."
+        case .authenticationFailed:
+            return "Cryptographic device identity could not be verified with the host."
+        case .transportFailed:
+            return "Unable to maintain network transport with host. Please check network connectivity."
+        case .connectionTimeout:
+            return "Connection attempt timed out. The host did not respond in time."
+        default:
+            return "The session could not be established."
+        }
+    }
 }
 
 public final class MacSessionViewModel: ObservableObject, RemoteSessionDelegate, @unchecked Sendable {
     @Published public var peerName: String
-    @Published public var connectionState: SessionState = .connected
+    @Published public var targetDevice: Device?
+    @Published public var connectionState: SessionState = .connecting
     @Published public var currentFrameImage: NSImage? = nil
     @Published public var latencyMs: Double = 0.0
     @Published public var isRelayed: Bool = false
@@ -216,16 +307,23 @@ public final class MacSessionViewModel: ObservableObject, RemoteSessionDelegate,
     @Published public var annotationStrokes: [AnnotationStroke] = []
     @Published public var healthMetrics: MediaHealthMetrics = MediaHealthMetrics()
     @Published public var isStreamTimedOut: Bool = false
+    @Published public var errorMessage: String? = nil
     @Published public var showFileTransferModal: Bool = false
     @Published public var showDiagnostics: Bool = false
+
+    public var isErrorState: Bool {
+        return connectionState.isTerminal && connectionState != .disconnected
+    }
 
     public var onDisconnect: (() -> Void)?
 
     private var frameWatchdogTimer: Timer?
     private var lastFrameReceivedTime: Date?
 
-    public init(peerName: String) {
+    public init(peerName: String, targetDevice: Device? = nil) {
         self.peerName = peerName
+        self.targetDevice = targetDevice
+        self.connectionState = RemoteSessionManager.shared.currentState
         RemoteSessionManager.shared.delegate = self
         self.permissions = RemoteSessionManager.shared.activePermissions
         startFrameWatchdog()
@@ -242,9 +340,9 @@ public final class MacSessionViewModel: ObservableObject, RemoteSessionDelegate,
 
         frameWatchdogTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            if self.currentFrameImage == nil, let lastTime = self.lastFrameReceivedTime {
+            if self.connectionState == .connected, self.currentFrameImage == nil, let lastTime = self.lastFrameReceivedTime {
                 let elapsed = Date().timeIntervalSince(lastTime)
-                if elapsed >= 6.0 {
+                if elapsed >= 5.0 {
                     DispatchQueue.main.async {
                         self.isStreamTimedOut = true
                         self.healthMetrics = RemoteMediaSession.shared.getHealthMetrics()
@@ -258,6 +356,26 @@ public final class MacSessionViewModel: ObservableObject, RemoteSessionDelegate,
         DispatchQueue.main.async {
             self.isStreamTimedOut = false
             self.lastFrameReceivedTime = Date()
+        }
+    }
+
+    public func retryConnection() {
+        guard let device = targetDevice else { return }
+        DispatchQueue.main.async {
+            self.errorMessage = nil
+            self.connectionState = .connecting
+            self.isStreamTimedOut = false
+            self.lastFrameReceivedTime = Date()
+        }
+        Task {
+            do {
+                try await RemoteSessionManager.shared.startSession(with: device, requestedPermissions: permissions)
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorMessage = error.localizedDescription
+                    self.connectionState = RemoteSessionManager.shared.currentState
+                }
+            }
         }
     }
 
@@ -284,9 +402,42 @@ public final class MacSessionViewModel: ObservableObject, RemoteSessionDelegate,
         }
     }
 
+    public func sendFile(url: URL) {
+        Task {
+            do {
+                let (metadata, chunks) = try FileTransferManager.shared.prepareFileForSending(fileURL: url)
+                let offerPayload = try JSONEncoder().encode(metadata)
+                let offerMsg = ProtocolMessage(
+                    type: .fileOffer,
+                    senderID: DeviceIdentity.current.deviceID,
+                    targetID: peerName,
+                    payload: offerPayload
+                )
+                try await RemoteSessionManager.shared.activeTransport?.sendMessage(offerMsg)
+                for (idx, chunkData) in chunks.enumerated() {
+                    let chunkPayload = FileChunkPayload(
+                        transferID: metadata.transferID,
+                        chunkIndex: idx,
+                        data: chunkData
+                    )
+                    let encodedChunk = try JSONEncoder().encode(chunkPayload)
+                    let chunkMsg = ProtocolMessage(
+                        type: .fileChunk,
+                        senderID: DeviceIdentity.current.deviceID,
+                        targetID: self.peerName,
+                        payload: encodedChunk
+                    )
+                    try await RemoteSessionManager.shared.activeTransport?.sendMessage(chunkMsg)
+                }
+            } catch {
+                print("[FileTransfer] Failed to send file: \(error.localizedDescription)")
+            }
+        }
+    }
+
     public func disconnect() {
         frameWatchdogTimer?.invalidate()
-        RemoteSessionManager.shared.endSession(reason: "Controller disconnected")
+        RemoteSessionManager.shared.endSession(reason: "Controller requested disconnect")
         DispatchQueue.main.async { [weak self] in
             self?.onDisconnect?()
         }
@@ -297,10 +448,23 @@ public final class MacSessionViewModel: ObservableObject, RemoteSessionDelegate,
     public func remoteSession(_ session: RemoteSessionManager, didChangeState state: SessionState) {
         DispatchQueue.main.async {
             self.connectionState = state
-            if state == .disconnected || state.isTerminal {
+            if let err = session.lastErrorMessage {
+                self.errorMessage = err
+            }
+            if state == .disconnected {
                 self.frameWatchdogTimer?.invalidate()
                 self.onDisconnect?()
             }
+        }
+    }
+
+    public func remoteSession(_ session: RemoteSessionManager, didReceiveDecodedImage image: CGImage, timestamp: Double) {
+        DispatchQueue.main.async {
+            let size = NSSize(width: image.width, height: image.height)
+            self.currentFrameImage = NSImage(cgImage: image, size: size)
+            self.isStreamTimedOut = false
+            self.lastFrameReceivedTime = Date()
+            RemoteMediaSession.shared.recordRenderedFrame()
         }
     }
 
@@ -346,68 +510,73 @@ public final class MacSessionViewModel: ObservableObject, RemoteSessionDelegate,
     }
 
     public func remoteSession(_ session: RemoteSessionManager, didEncounterError error: Error) {
-        print("[MacSessionViewModel] Session error: \(error)")
+        DispatchQueue.main.async {
+            self.errorMessage = error.localizedDescription
+        }
     }
 
     public func remoteSessionDidEnd(_ session: RemoteSessionManager, reason: String, endedByHost: Bool) {
-        DispatchQueue.main.async { [weak self] in
-            self?.frameWatchdogTimer?.invalidate()
-            self?.onDisconnect?()
+        DispatchQueue.main.async {
+            self.frameWatchdogTimer?.invalidate()
+            self.onDisconnect?()
         }
     }
 }
 
-public struct MacFileTransferModalView: View {
-    @Environment(\.dismiss) private var dismiss
+// MARK: - File Transfer Modal View
+
+struct MacFileTransferModalView: View {
     @ObservedObject var viewModel: MacSessionViewModel
-    @State private var transferProgress: Float = 0.0
-    @State private var statusText: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedFileURL: URL?
 
-    public init(viewModel: MacSessionViewModel) {
-        self.viewModel = viewModel
-        self._statusText = State(initialValue: "Select a file to transfer to \(viewModel.peerName)")
-    }
-
-    public var body: some View {
-        VStack(spacing: 16) {
+    var body: some View {
+        VStack(spacing: 20) {
             Text("File Transfer")
-                .font(.title2)
-                .bold()
+                .font(.headline)
 
-            Text(statusText)
-                .font(.callout)
-                .foregroundColor(.secondary)
+            if let url = selectedFileURL {
+                VStack(spacing: 8) {
+                    Image(systemName: "doc.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(.blue)
+                    Text(url.lastPathComponent)
+                        .font(.subheadline)
+                        .bold()
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.1)))
 
-            if transferProgress > 0 {
-                ProgressView(value: transferProgress)
-                    .progressViewStyle(.linear)
-            }
+                Button("Send File to Remote") {
+                    viewModel.sendFile(url: url)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            } else {
+                Text("Select a file to send to \(viewModel.peerName):")
+                    .foregroundColor(.secondary)
 
-            HStack {
-                Button("Close") { dismiss() }
-                Spacer()
-                Button("Choose File...") {
+                Button("Choose File…") {
                     let panel = NSOpenPanel()
                     panel.allowsMultipleSelection = false
                     panel.canChooseDirectories = false
                     if panel.runModal() == .OK, let url = panel.url {
-                        if let (metadata, _) = try? FileTransferManager.shared.prepareFileForSending(fileURL: url) {
-                            statusText = "Sending \(metadata.fileName)..."
-                            FileTransferManager.shared.onProgressUpdate = { _, progress in
-                                DispatchQueue.main.async {
-                                    self.transferProgress = progress
-                                    if progress >= 1.0 {
-                                        self.statusText = "Transfer completed successfully!"
-                                    }
-                                }
-                            }
-                        }
+                        selectedFileURL = url
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
             }
+
+            Divider()
+
+            Button("Close") {
+                dismiss()
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.secondary)
         }
-        .padding(20)
-        .frame(width: 400)
+        .padding(24)
+        .frame(width: 360, height: 260)
     }
 }

@@ -22,12 +22,20 @@ public final class BonjourDiscoveryManager: @unchecked Sendable {
         return Array(discoveredPeersMap.values)
     }
 
+    private var currentIdentity: DeviceIdentity?
+    private var currentPort: UInt16 = 58900
+    private var isPairingActive: Bool = false
+    private var currentPairHash: String?
+
     public init() {}
 
     /// Start advertising this device on the local network via Bonjour.
     public func startAdvertising(identity: DeviceIdentity, port: UInt16 = 58900) {
         lock.lock()
         defer { lock.unlock() }
+
+        self.currentIdentity = identity
+        self.currentPort = port
 
         stopAdvertising()
 
@@ -36,13 +44,17 @@ public final class BonjourDiscoveryManager: @unchecked Sendable {
             let nwPort = NWEndpoint.Port(rawValue: port) ?? .any
             listener = try NWListener(using: parameters, on: nwPort)
 
-            let txtRecord: [String: String] = [
+            var txtRecord: [String: String] = [
                 "id": identity.deviceID,
                 "name": identity.deviceName,
                 "platform": identity.platform.rawValue,
                 "port": String(port),
-                "pk": identity.publicKeyRepresentation.base64EncodedString()
+                "pk": identity.publicKeyRepresentation.base64EncodedString(),
+                "pairing": isPairingActive ? "1" : "0"
             ]
+            if let ph = currentPairHash {
+                txtRecord["pairHash"] = ph
+            }
 
             listener?.service = NWListener.Service(
                 name: identity.deviceName,
@@ -77,6 +89,18 @@ public final class BonjourDiscoveryManager: @unchecked Sendable {
     public func stopAdvertising() {
         listener?.cancel()
         listener = nil
+    }
+
+    /// Dynamically update pairing TXT record without interrupting existing connections.
+    public func updatePairingAdvertisement(active: Bool, pairHash: String?) {
+        lock.lock()
+        self.isPairingActive = active
+        self.currentPairHash = pairHash
+        let identity = self.currentIdentity ?? DeviceIdentity.current
+        let port = self.currentPort
+        lock.unlock()
+
+        startAdvertising(identity: identity, port: port)
     }
 
     /// Start browsing for other Remote Desktop devices on the local LAN.

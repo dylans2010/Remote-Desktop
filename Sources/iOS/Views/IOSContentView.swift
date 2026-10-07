@@ -41,12 +41,9 @@ public struct IOSContentView: View {
             }
         }
         .sheet(isPresented: $isPairingModalPresented) {
-            IOSPairingModalView { code in
-                PairingManager.shared.pairWithDevice(using: code) { success, peer in
-                    if success, let peer = peer {
-                        TrustModel.shared.trustDevice(peer)
-                        self.discoveredDevices.append(peer)
-                    }
+            IOSPairingModalView { newDevice in
+                if !self.discoveredDevices.contains(where: { $0.id == newDevice.id }) {
+                    self.discoveredDevices.append(newDevice)
                 }
             }
         }
@@ -86,7 +83,7 @@ public struct IOSContentView: View {
     }
 
     private func setupBonjourDiscovery() {
-        let localIdentity = DeviceIdentity(deviceName: "iPhone")
+        let localIdentity = DeviceIdentity.current
         BonjourDiscoveryManager.shared.startAdvertising(identity: localIdentity)
         BonjourDiscoveryManager.shared.startBrowsing { devices in
             DispatchQueue.main.async {
@@ -111,7 +108,7 @@ public struct IOSContentView: View {
     }
 
     private func connectToDevice(_ device: Device) {
-        let sessionVM = IOSSessionViewModel(peerName: device.name)
+        let sessionVM = IOSSessionViewModel(peerName: device.name, targetDevice: device)
         sessionVM.onDisconnect = { [weak sessionVM] in
             DispatchQueue.main.async {
                 if self.activeControllerViewModel === sessionVM {
@@ -127,10 +124,9 @@ public struct IOSContentView: View {
             do {
                 try await RemoteSessionManager.shared.startSession(with: device, requestedPermissions: initialPermissions)
             } catch {
-                print("[IOSContentView] Failed to connect: \(error)")
-                DispatchQueue.main.async {
-                    self.activeControllerViewModel = nil
-                }
+                print("[IOSContentView] Start session encountered error: \(error)")
+                // Do NOT dismiss activeControllerViewModel on error!
+                // The session view model remains active and displays the actionable error state.
             }
         }
     }

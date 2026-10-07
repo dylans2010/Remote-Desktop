@@ -12,12 +12,18 @@ import UIKit
 /// Delegate protocol for remote desktop session state updates, frames, permissions, and metrics.
 public protocol RemoteSessionDelegate: AnyObject {
     func remoteSession(_ session: RemoteSessionManager, didChangeState state: SessionState)
+    func remoteSession(_ session: RemoteSessionManager, didReceiveDecodedImage image: CGImage, timestamp: Double)
     func remoteSession(_ session: RemoteSessionManager, didReceiveFrame frameData: Data, timestamp: Double)
     func remoteSession(_ session: RemoteSessionManager, didUpdatePermissions permissions: RemoteSessionPermissions)
     func remoteSession(_ session: RemoteSessionManager, didUpdateHealth metrics: MediaHealthMetrics)
     func remoteSession(_ session: RemoteSessionManager, didReceiveAnnotation stroke: AnnotationStroke, action: AnnotationAction)
     func remoteSession(_ session: RemoteSessionManager, didEncounterError error: Error)
     func remoteSessionDidEnd(_ session: RemoteSessionManager, reason: String, endedByHost: Bool)
+}
+
+public extension RemoteSessionDelegate {
+    func remoteSession(_ session: RemoteSessionManager, didReceiveDecodedImage image: CGImage, timestamp: Double) {}
+    func remoteSession(_ session: RemoteSessionManager, didReceiveFrame frameData: Data, timestamp: Double) {}
 }
 
 /// Orchestrates session state machine, incoming approval, permissions enforcement, media pipeline, input validation, and orderly disconnect.
@@ -37,6 +43,7 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
     private(set) public var activePeer: Device?
     private(set) public var activePermissions: RemoteSessionPermissions = .standardDefault
     private(set) public var sessionStartTime: Date?
+    private(set) public var lastErrorMessage: String?
 
     public var activeTransport: ConnectionTransport?
 
@@ -45,6 +52,7 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
     private var roundTripLatencyMs: Double = 0.0
     private var reconnectAttempts = 0
     private let maxReconnectAttempts = 3
+    private var sentConnectionChallenge: Data?
     private let lock = NSLock()
 
     #if os(macOS)
@@ -68,10 +76,26 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
 
     /// Controller initiates a connection request to a remote host device.
     public func startSession(with targetDevice: Device, requestedPermissions: RemoteSessionPermissions = .standardDefault) async throws {
+        // Step 1: Validate trusted device
+        guard TrustModel.shared.isTrusted(deviceID: targetDevice.id) else {
+            let error = NSError(domain: "RemoteSessionManager", code: 403, userInfo: [
+                NSLocalizedDescriptionKey: "Device is not trusted. You must pair with this device before connecting."
+            ])
+            withStateLock {
+                self.lastErrorMessage = error.localizedDescription
+                updateState(.authenticationFailed)
+            }
+            throw error
+        }
+
+        let clientChallenge = PairingManager.shared.createChallenge()
+
         withStateLock {
             self.activePeer = targetDevice
             self.sessionRole = .controller
             self.activePermissions = requestedPermissions
+            self.sentConnectionChallenge = clientChallenge
+            self.lastErrorMessage = nil
             updateState(.connecting)
         }
 
@@ -82,24 +106,38 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             self.activeTransport = transport
         }
 
-        try await transport.connect(to: targetDevice)
+        do {
+            try await transport.connect(to: targetDevice)
+        } catch {
+            withStateLock {
+                self.lastErrorMessage = "Unable to connect to host: \(error.localizedDescription)"
+                updateState(.transportFailed)
+            }
+            throw error
+        }
 
-        // Once network connected, send formal connectionRequest with capabilities
+        // Once network connected, send formal connectionRequest with capabilities and cryptographic challenge
         withStateLock {
             updateState(.requestingPermission)
         }
 
-        let localIdentity = DeviceIdentity()
+        let localIdentity = DeviceIdentity.current
         let requestPayload = ConnectionRequestPayload(
             requesterID: localIdentity.deviceID,
             requesterName: localIdentity.deviceName,
             requesterPlatform: localIdentity.platform,
             requestedPermissions: requestedPermissions,
-            capabilities: localIdentity.platform == .macOS ? .macOSDefault : .iOSDefault
+            capabilities: localIdentity.capabilities,
+            challenge: clientChallenge
         )
 
         guard let payloadData = try? JSONEncoder().encode(requestPayload) else {
-            throw NSError(domain: "RemoteSessionManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to encode connection request"])
+            let err = NSError(domain: "RemoteSessionManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to encode connection request"])
+            withStateLock {
+                self.lastErrorMessage = err.localizedDescription
+                updateState(.transportFailed)
+            }
+            throw err
         }
 
         let requestMessage = ProtocolMessage(
@@ -109,7 +147,15 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             payload: payloadData
         )
 
-        try await transport.sendMessage(requestMessage)
+        do {
+            try await transport.sendMessage(requestMessage)
+        } catch {
+            withStateLock {
+                self.lastErrorMessage = "Failed to send connection request: \(error.localizedDescription)"
+                updateState(.transportFailed)
+            }
+            throw error
+        }
 
         withStateLock {
             updateState(.awaitingApproval)
@@ -133,17 +179,17 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
 
         if isOccupied {
             print("[RemoteSessionManager] Rejecting incoming connection: Host is already in an active session.")
-            let localIdentity = DeviceIdentity()
+            let localIdentity = DeviceIdentity.current
             let busyPayload = ConnectionResponsePayload(
                 approved: false,
                 hostID: localIdentity.deviceID,
                 hostName: localIdentity.deviceName,
                 grantedPermissions: .viewOnly,
-                hostCapabilities: localIdentity.platform == .macOS ? .macOSDefault : .iOSDefault,
+                hostCapabilities: localIdentity.capabilities,
                 rejectionReason: "This host is already in use by another session."
             )
             if let data = try? JSONEncoder().encode(busyPayload) {
-                let msg = ProtocolMessage(type: .connectionResponse, senderID: "local", payload: data)
+                let msg = ProtocolMessage(type: .connectionResponse, senderID: localIdentity.deviceID, payload: data)
                 Task {
                     try? await transport.sendMessage(msg)
                     try? await Task.sleep(nanoseconds: 500_000_000)
@@ -155,8 +201,6 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
 
         withStateLock {
             self.activeTransport = transport
-            self.sessionRole = .host
-            updateState(.connecting)
         }
         #endif
     }
@@ -166,15 +210,22 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
     public func transport(_ transport: ConnectionTransport, didChangeState state: TransportConnectionState) {
         withStateLock {
             if state == .failed {
+                self.lastErrorMessage = "Network transport failed"
                 updateState(.transportFailed)
-            } else if state == .disconnected && currentState != .disconnected {
+            } else if state == .disconnected && currentState != .disconnected && currentState != .idle {
                 updateState(.disconnected)
             }
         }
     }
 
     public func transport(_ transport: ConnectionTransport, didReceiveMessage message: ProtocolMessage) {
+        if self.activeTransport == nil {
+            self.activeTransport = transport
+        }
         switch message.type {
+        case .pairRequest:
+            handleInboundPairRequest(message)
+
         case .connectionRequest:
             handleIncomingConnectionRequest(message)
 
@@ -225,8 +276,34 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
     }
 
     public func transport(_ transport: ConnectionTransport, didFailWithError error: Error) {
+        withStateLock {
+            self.lastErrorMessage = error.localizedDescription
+        }
         delegate?.remoteSession(self, didEncounterError: error)
         handleNetworkInterruption()
+    }
+
+    // MARK: - Inbound Pairing Message Handling
+
+    private func handleInboundPairRequest(_ message: ProtocolMessage) {
+        guard let payloadData = message.payload,
+              let request = try? JSONDecoder().decode(PairingRequestPayload.self, from: payloadData) else {
+            return
+        }
+
+        let response = PairingManager.shared.processInboundPairingRequest(request)
+        guard let respData = try? JSONEncoder().encode(response) else { return }
+
+        let respMsg = ProtocolMessage(
+            type: response.accepted ? .pairAccepted : .pairRejected,
+            senderID: DeviceIdentity.current.deviceID,
+            targetID: request.requesterID,
+            payload: respData
+        )
+
+        Task {
+            try? await self.activeTransport?.sendMessage(respMsg)
+        }
     }
 
     // MARK: - Connection Negotiation Handlers
@@ -237,30 +314,56 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             return
         }
 
+        // Verify that requester is a trusted device
+        let isTrusted = TrustModel.shared.isTrusted(deviceID: request.requesterID)
+        if !isTrusted {
+            print("[RemoteSessionManager] Incoming connection request from untrusted device: \(request.requesterName)")
+            let localIdentity = DeviceIdentity.current
+            let rejectPayload = ConnectionResponsePayload(
+                approved: false,
+                hostID: localIdentity.deviceID,
+                hostName: localIdentity.deviceName,
+                grantedPermissions: .viewOnly,
+                hostCapabilities: localIdentity.capabilities,
+                rejectionReason: "Device is untrusted. Please pair devices first."
+            )
+            if let data = try? JSONEncoder().encode(rejectPayload) {
+                let msg = ProtocolMessage(type: .connectionResponse, senderID: localIdentity.deviceID, payload: data)
+                Task {
+                    try? await activeTransport?.sendMessage(msg)
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    activeTransport?.disconnect()
+                }
+            }
+            return
+        }
+
         let requesterDevice = Device(
             id: request.requesterID,
             name: request.requesterName,
             platform: request.requesterPlatform,
             publicKeyData: Data(),
             capabilities: request.capabilities,
-            trustStatus: TrustModel.shared.isTrusted(deviceID: request.requesterID) ? .trusted : .pendingApproval,
+            trustStatus: .trusted,
             onlineState: .online
         )
 
         withStateLock {
             self.activePeer = requesterDevice
+            self.sessionRole = .host
+            self.sentConnectionChallenge = request.challenge
             updateState(.awaitingApproval)
         }
 
         #if os(macOS)
-        // Check if device is trusted with unattended access enabled
-        if TrustModel.shared.isTrusted(deviceID: request.requesterID) && HostModeManager.shared.config.allowUnattendedAccess {
+        // Check if unattended access enabled
+        if HostModeManager.shared.config.allowUnattendedAccess {
             let defaultPerms = TrustModel.shared.defaultPermissions(for: request.requesterID)
             self.respondToConnectionRequest(approved: true, permissions: defaultPerms)
             return
         }
 
-        // Dispatch approval prompt to host UI and local notification
+        // Dispatch approval prompt to host UI
         if let customApproval = incomingApprovalHandler {
             customApproval(requesterDevice, request.requestedPermissions) { [weak self] approved, grantedPermissions in
                 self?.respondToConnectionRequest(approved: approved, permissions: grantedPermissions)
@@ -277,9 +380,8 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
                 self?.respondToConnectionRequest(approved: approved, permissions: grantedPermissions)
             }
         } else {
-            let isTrusted = TrustModel.shared.isTrusted(deviceID: request.requesterID)
-            let perms = isTrusted ? TrustModel.shared.defaultPermissions(for: request.requesterID) : request.requestedPermissions
-            self.respondToConnectionRequest(approved: isTrusted, permissions: perms)
+            let perms = TrustModel.shared.defaultPermissions(for: request.requesterID)
+            self.respondToConnectionRequest(approved: true, permissions: perms)
         }
         #endif
     }
@@ -290,14 +392,27 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             self.activePermissions = permissions
         }
 
-        let localIdentity = DeviceIdentity()
+        let localIdentity = DeviceIdentity.current
+        var hostSignature: Data? = nil
+        var hostChallenge: Data? = nil
+
+        if approved {
+            // Sign requester's challenge
+            if let clientChallenge = sentConnectionChallenge {
+                hostSignature = try? localIdentity.sign(challenge: clientChallenge)
+            }
+            hostChallenge = PairingManager.shared.createChallenge()
+        }
+
         let responsePayload = ConnectionResponsePayload(
             approved: approved,
             hostID: localIdentity.deviceID,
             hostName: localIdentity.deviceName,
             grantedPermissions: permissions,
-            hostCapabilities: localIdentity.platform == .macOS ? .macOSDefault : .iOSDefault,
-            rejectionReason: approved ? nil : "Host declined connection request."
+            hostCapabilities: localIdentity.capabilities,
+            rejectionReason: approved ? nil : "Host declined connection request.",
+            hostSignature: hostSignature,
+            hostChallenge: hostChallenge
         )
 
         guard let payloadData = try? JSONEncoder().encode(responsePayload) else { return }
@@ -319,6 +434,7 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
                 startHostScreenStreaming()
             } else {
                 withStateLock {
+                    self.lastErrorMessage = "Connection declined by user."
                     updateState(.permissionDenied)
                 }
                 try? await Task.sleep(nanoseconds: 300_000_000)
@@ -334,6 +450,19 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         }
 
         if response.approved {
+            // Cryptographic challenge verification
+            if let hostSig = response.hostSignature, let challenge = sentConnectionChallenge, let peer = activePeer {
+                let isValid = DeviceIdentity.verify(signature: hostSig, for: challenge, publicKeyData: peer.publicKeyData)
+                if !isValid {
+                    print("[RemoteSessionManager] Host authentication failed: Signature invalid!")
+                    withStateLock {
+                        self.lastErrorMessage = "Host authentication failed: Cryptographic signature mismatch."
+                        updateState(.authenticationFailed)
+                    }
+                    return
+                }
+            }
+
             withStateLock {
                 self.activePermissions = response.grantedPermissions
                 self.sessionStartTime = Date()
@@ -346,11 +475,12 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
 
             print("[RemoteSessionManager] Connection approved by host with permissions: \(response.grantedPermissions)")
         } else {
+            let reason = response.rejectionReason ?? "Connection rejected by host"
             withStateLock {
+                self.lastErrorMessage = reason
                 updateState(.permissionDenied)
             }
-            print("[RemoteSessionManager] Connection rejected: \(response.rejectionReason ?? "Unknown")")
-            endSession(reason: response.rejectionReason ?? "Connection rejected by host")
+            print("[RemoteSessionManager] Connection rejected: \(reason)")
         }
     }
 
@@ -359,6 +489,14 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
     private func startHostScreenStreaming() {
         #if os(macOS)
         Task {
+            guard ScreenRecordingPermissionManager.shared.isAuthorized else {
+                withStateLock {
+                    self.lastErrorMessage = "Screen Recording permission is required on the host."
+                    updateState(.captureUnavailable)
+                }
+                return
+            }
+
             let captureEngine = ScreenCaptureEngine()
             captureEngine.delegate = self
             withStateLock {
@@ -378,6 +516,7 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             } catch {
                 print("[RemoteSessionManager] Screen capture failed to start: \(error)")
                 withStateLock {
+                    self.lastErrorMessage = "Screen capture failed: \(error.localizedDescription)"
                     updateState(.captureUnavailable)
                 }
             }
@@ -391,6 +530,7 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
                 try? await RemoteMediaSession.shared.sendVideoFrame(frameData, timestamp: timestamp)
             }
         }
+        iOSBroadcastManager.shared.startBroadcast()
         withStateLock {
             updateState(.connected)
             startHeartbeat()
@@ -443,7 +583,6 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
     // MARK: - Input Validation & Injection (Host-Enforced)
 
     private func handleIncomingInputEvent(_ message: ProtocolMessage) {
-        // Enforce permissions strictly on the host side
         guard sessionRole == .host, currentState == .connected else { return }
         guard activePermissions.controlScreen else {
             print("[RemoteSessionManager] Input event dropped: controlScreen permission disabled")
@@ -525,7 +664,6 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
         let isHost = (sessionRole == .host)
         let peer = activePeer
 
-        // Send disconnect notice across authenticated transport
         if let peer = peer {
             if isHost {
                 let payload = SessionEndedPayload(reason: reason, endedByHost: true)
@@ -546,7 +684,6 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
     }
 
     private func handleDisconnectRequest(_ message: ProtocolMessage) {
-        let isHost = (sessionRole == .host)
         let ackMsg = ProtocolMessage(type: .disconnectAck, senderID: "local")
         Task { try? await activeTransport?.sendMessage(ackMsg) }
 
@@ -589,6 +726,7 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
             activePeer = nil
             sessionRole = .none
             sessionStartTime = nil
+            sentConnectionChallenge = nil
             updateState(.disconnected)
         }
 
@@ -679,8 +817,16 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
 
     // MARK: - RemoteMediaSessionDelegate
 
+    public func mediaSession(_ session: RemoteMediaSession, didReceiveDecodedImage image: CGImage, timestamp: Double) {
+        withStateLock {
+            if currentState == .establishingMedia && sessionRole == .controller {
+                updateState(.connected)
+            }
+        }
+        delegate?.remoteSession(self, didReceiveDecodedImage: image, timestamp: timestamp)
+    }
+
     public func mediaSession(_ session: RemoteMediaSession, didReceiveDecodedFrame frameData: Data, timestamp: Double) {
-        // If controller received first frame, transition state from establishingMedia to connected
         withStateLock {
             if currentState == .establishingMedia && sessionRole == .controller {
                 updateState(.connected)
@@ -695,6 +841,11 @@ public final class RemoteSessionManager: ConnectionTransportDelegate, RemoteMedi
 
     public func mediaSessionDidStall(_ session: RemoteMediaSession, stage: PipelineDiagnosticStage) {
         print("[RemoteSessionManager] Media pipeline stalled at stage: \(stage.rawValue)")
+        withStateLock {
+            if currentState == .connected || currentState == .establishingMedia {
+                self.lastErrorMessage = "Screen stream stalled: \(stage.rawValue)"
+            }
+        }
     }
 }
 
@@ -708,6 +859,7 @@ extension RemoteSessionManager: FrameCaptureDelegate {
 
     public func frameCaptureEngineDidFail(_ engine: ScreenCaptureEngine, error: Error) {
         withStateLock {
+            self.lastErrorMessage = error.localizedDescription
             updateState(.captureUnavailable)
         }
         delegate?.remoteSession(self, didEncounterError: error)

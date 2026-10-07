@@ -12,6 +12,10 @@ public final class DeviceIdentity: Codable, @unchecked Sendable {
 
     private let privateKey: Curve25519.Signing.PrivateKey
 
+    public var capabilities: RemoteCapabilities {
+        return platform == .macOS ? .macOSDefault : .iOSDefault
+    }
+
     /// Initialize by generating a new identity or loading existing keys.
     public init(deviceName: String? = nil, platform: DevicePlatform? = nil, privateKey: Curve25519.Signing.PrivateKey? = nil) {
         let key = privateKey ?? Curve25519.Signing.PrivateKey()
@@ -34,6 +38,50 @@ public final class DeviceIdentity: Codable, @unchecked Sendable {
         #endif
         self.deviceName = deviceName ?? defaultName
         self.platform = platform ?? defaultPlatform
+    }
+
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var cachedCurrent: DeviceIdentity?
+
+    /// Thread-safe access to persistent local device identity loaded from Keychain.
+    public static var current: DeviceIdentity {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if let cached = cachedCurrent {
+            return cached
+        }
+
+        #if os(macOS)
+        let name = Host.current().localizedName ?? "Mac"
+        let plat = DevicePlatform.macOS
+        #elseif os(iOS)
+        let name = "iPhone"
+        let plat = DevicePlatform.iOS
+        #else
+        let name = "Apple Device"
+        let plat = DevicePlatform.unknown
+        #endif
+
+        if let savedKeyData = KeychainManager.shared.loadDevicePrivateKey(),
+           let restored = try? DeviceIdentity.restore(from: savedKeyData, deviceName: name) {
+            cachedCurrent = restored
+            return restored
+        }
+
+        // Generate brand new identity and persist to Keychain
+        let newIdentity = DeviceIdentity(deviceName: name, platform: plat)
+        KeychainManager.shared.saveDevicePrivateKey(newIdentity.rawPrivateKeyData)
+        cachedCurrent = newIdentity
+        return newIdentity
+    }
+
+    /// Reset identity (used in unit tests)
+    public static func resetCurrentIdentityForTesting() {
+        lock.lock()
+        defer { lock.unlock() }
+        cachedCurrent = nil
+        KeychainManager.shared.deleteDevicePrivateKey()
     }
 
     /// Export private key data for secure Keychain storage.

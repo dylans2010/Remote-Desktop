@@ -16,6 +16,7 @@ public final class RemoteDesktopUnitTests {
         passed = passed && testMediaPipelineDiagnostics()
         passed = passed && testAnnotationModel()
         passed = passed && testConnectionHandshakePayloads()
+        passed = passed && testVideoPacketSerialization()
 
         print("======== Test Suite Result: \(passed ? "ALL PASSED" : "FAILED") ========")
         return passed
@@ -70,21 +71,54 @@ public final class RemoteDesktopUnitTests {
     }
 
     private static func testPairingManager() -> Bool {
-        print("[TEST] PairingManager pairing code lifecycle...")
+        print("[TEST] PairingManager pairing code lifecycle and strict validation...")
         let pairingCode = PairingManager.shared.generatePairingCode(expirationSeconds: 60)
         if pairingCode.count != 6 {
             print("❌ Pairing code length invalid")
             return false
         }
 
+        // 1. Valid active code must validate
         let isValid = PairingManager.shared.validatePairingCode(pairingCode)
-        if isValid {
-            print("✅ PairingManager test passed")
-            return true
-        } else {
-            print("❌ Pairing code validation failed")
+        guard isValid else {
+            print("❌ Pairing code validation failed for genuine active code")
             return false
         }
+
+        // 2. Arbitrary/fake codes must be rejected immediately!
+        let fakeCodes = ["000000", "123456", "999999", "111111"]
+        for fake in fakeCodes where fake != pairingCode {
+            if PairingManager.shared.validatePairingCode(fake) {
+                print("❌ FAILED: PairingManager erroneously accepted fake code: \(fake)")
+                return false
+            }
+        }
+
+        // 3. Inbound pairing request with invalid code must be rejected
+        let badRequest = PairingRequestPayload(
+            candidateCode: "000000",
+            requesterID: "rogue_device",
+            requesterName: "Attacker",
+            requesterPlatform: .macOS,
+            requesterPublicKey: Data(repeating: 0x01, count: 32),
+            requesterChallenge: Data(repeating: 0x02, count: 32),
+            requesterCapabilities: .macOSDefault
+        )
+        let rejectResponse = PairingManager.shared.processInboundPairingRequest(badRequest)
+        guard !rejectResponse.accepted else {
+            print("❌ FAILED: Inbound pairing request with fake code was accepted")
+            return false
+        }
+
+        // 4. Invalidation must revoke the active code
+        PairingManager.shared.invalidateActiveCode()
+        if PairingManager.shared.validatePairingCode(pairingCode) {
+            print("❌ FAILED: Invalidated pairing code was still accepted")
+            return false
+        }
+
+        print("✅ PairingManager strict validation and lifecycle tests passed")
+        return true
     }
 
     private static func testCoordinateMapping() -> Bool {
@@ -283,6 +317,46 @@ public final class RemoteDesktopUnitTests {
         }
 
         print("✅ Connection handshake payloads test passed")
+        return true
+    }
+
+    private static func testVideoPacketSerialization() -> Bool {
+        print("[TEST] VideoFramePacket binary serialization and deserialization...")
+        let dummySPS = Data([0x67, 0x42, 0x00, 0x1f])
+        let dummyPPS = Data([0x68, 0xce, 0x38, 0x80])
+        let dummyPayload = Data(repeating: 0xaa, count: 1024)
+
+        let packet = VideoFramePacket(
+            sequenceNumber: 42,
+            timestamp: 123.456,
+            codec: .h264,
+            isKeyframe: true,
+            width: 1920,
+            height: 1080,
+            sps: dummySPS,
+            pps: dummyPPS,
+            payload: dummyPayload
+        )
+
+        let serialized = packet.serialize()
+        guard let deserialized = VideoFramePacket.deserialize(from: serialized) else {
+            print("❌ Failed to deserialize VideoFramePacket")
+            return false
+        }
+
+        guard deserialized.sequenceNumber == 42,
+              deserialized.isKeyframe == true,
+              deserialized.width == 1920,
+              deserialized.height == 1080,
+              deserialized.codec == .h264,
+              deserialized.sps == dummySPS,
+              deserialized.pps == dummyPPS,
+              deserialized.payload == dummyPayload else {
+            print("❌ Deserialized VideoFramePacket field mismatch")
+            return false
+        }
+
+        print("✅ VideoFramePacket serialization test passed")
         return true
     }
 }

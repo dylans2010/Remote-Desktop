@@ -54,12 +54,9 @@ public struct MacContentView: View {
             }
         }
         .sheet(isPresented: $isPairingModalPresented) {
-            MacPairingModalView { code in
-                PairingManager.shared.pairWithDevice(using: code) { success, peer in
-                    if success, let peer = peer {
-                        TrustModel.shared.trustDevice(peer)
-                        self.discoveredDevices.append(peer)
-                    }
+            MacPairingModalView { newDevice in
+                if !self.discoveredDevices.contains(where: { $0.id == newDevice.id }) {
+                    self.discoveredDevices.append(newDevice)
                 }
             }
         }
@@ -125,7 +122,7 @@ public struct MacContentView: View {
     }
 
     private func connectToDevice(_ device: Device) {
-        let sessionVM = MacSessionViewModel(peerName: device.name)
+        let sessionVM = MacSessionViewModel(peerName: device.name, targetDevice: device)
         sessionVM.onDisconnect = { [weak sessionVM] in
             DispatchQueue.main.async {
                 if self.activeControllerViewModel === sessionVM {
@@ -141,10 +138,9 @@ public struct MacContentView: View {
             do {
                 try await RemoteSessionManager.shared.startSession(with: device, requestedPermissions: initialPermissions)
             } catch {
-                print("[MacContentView] Failed to connect: \(error)")
-                DispatchQueue.main.async {
-                    self.activeControllerViewModel = nil
-                }
+                print("[MacContentView] Start session encountered error: \(error)")
+                // Do NOT dismiss activeControllerViewModel on error!
+                // The session view model remains active and displays the actionable error state.
             }
         }
     }

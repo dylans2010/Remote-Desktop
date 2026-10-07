@@ -5,12 +5,13 @@ public struct MacPairingModalView: View {
 
     @State private var generatedCode: String = ""
     @State private var inputPairingCode: String = ""
+    @State private var isPairingInProgress: Bool = false
     @State private var errorMessage: String? = nil
 
-    var onSubmitCode: (String) -> Void
+    var onDevicePaired: (Device) -> Void
 
-    public init(onSubmitCode: @escaping (String) -> Void) {
-        self.onSubmitCode = onSubmitCode
+    public init(onDevicePaired: @escaping (Device) -> Void) {
+        self.onDevicePaired = onDevicePaired
     }
 
     public var body: some View {
@@ -29,6 +30,9 @@ public struct MacPairingModalView: View {
                     .padding(.vertical, 8)
                     .background(Color.secondary.opacity(0.15))
                     .cornerRadius(8)
+                Text("Share this 6-digit code with the device you wish to pair with.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
 
             Divider()
@@ -40,38 +44,76 @@ public struct MacPairingModalView: View {
                 TextField("6-digit code (e.g. 839274)", text: $inputPairingCode)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 18, design: .monospaced))
+                    .disabled(isPairingInProgress)
             }
 
             if let error = errorMessage {
-                Text(error)
-                    .font(.caption)
-                    .foregroundColor(.red)
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                    Text(error)
+                }
+                .font(.caption)
+                .foregroundColor(.red)
             }
 
             HStack {
                 Button("Cancel") {
+                    PairingManager.shared.invalidateActiveCode()
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
+                .disabled(isPairingInProgress)
 
                 Spacer()
 
+                if isPairingInProgress {
+                    ProgressView()
+                        .controlSize(.small)
+                        .padding(.trailing, 8)
+                }
+
                 Button("Connect & Pair") {
-                    if inputPairingCode.trimmingCharacters(in: .whitespaces).count == 6 {
-                        onSubmitCode(inputPairingCode)
-                        dismiss()
-                    } else {
-                        errorMessage = "Please enter a valid 6-digit pairing code."
-                    }
+                    startPairing()
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
+                .disabled(isPairingInProgress || inputPairingCode.trimmingCharacters(in: .whitespaces).count != 6)
             }
         }
         .padding(24)
-        .frame(width: 420)
+        .frame(width: 440)
         .onAppear {
             generatedCode = PairingManager.shared.generatePairingCode()
+        }
+        .onDisappear {
+            PairingManager.shared.invalidateActiveCode()
+        }
+    }
+
+    private func startPairing() {
+        let code = inputPairingCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard code.count == 6 && code.allSatisfy({ $0.isNumber }) else {
+            errorMessage = "Please enter a valid 6-digit numeric pairing code."
+            return
+        }
+
+        isPairingInProgress = true
+        errorMessage = nil
+
+        Task {
+            do {
+                let device = try await PairingManager.shared.pairWithDevice(using: code)
+                DispatchQueue.main.async {
+                    self.isPairingInProgress = false
+                    self.onDevicePaired(device)
+                    self.dismiss()
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isPairingInProgress = false
+                    self.errorMessage = error.localizedDescription
+                }
+            }
         }
     }
 }
