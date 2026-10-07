@@ -11,6 +11,31 @@
 		49C733113AAEA9A1413F4107 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E3EE688102741E6C95AFAD9 /* ContentView.swift */; };
 		A32C353A0E8BB748B02A9949 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E3EE688102741E6C95AFAD9 /* ContentView.swift */; };
 		C2CAD658BB521A17DFC3D4A8 /* Remote DesktopApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37F132326BBC6400CB3217A /* Remote DesktopApp.swift */; };
+		F0000001 /* DeviceIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000001 /* DeviceIdentity.swift */; };
+		F0000002 /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000002 /* KeychainManager.swift */; };
+		F0000003 /* Device.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000003 /* Device.swift */; };
+		F0000004 /* ProtocolEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000004 /* ProtocolEngine.swift */; };
+		F0000005 /* BonjourDiscoveryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000005 /* BonjourDiscoveryManager.swift */; };
+		F0000006 /* PairingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000006 /* PairingManager.swift */; };
+		F0000007 /* ConnectionTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000007 /* ConnectionTransport.swift */; };
+		F0000008 /* SignalingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000008 /* SignalingClient.swift */; };
+		F0000009 /* NATTraversalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000009 /* NATTraversalEngine.swift */; };
+		F0000010 /* VideoEncoderDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000010 /* VideoEncoderDecoder.swift */; };
+		F0000011 /* ClipboardSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000011 /* ClipboardSyncManager.swift */; };
+		F0000012 /* FileTransferManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000012 /* FileTransferManager.swift */; };
+		F0000013 /* RemoteSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000013 /* RemoteSessionManager.swift */; };
+		F0000014 /* ScreenCaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000014 /* ScreenCaptureEngine.swift */; };
+		F0000015 /* RemoteInputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000015 /* RemoteInputEngine.swift */; };
+		F0000016 /* PermissionsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000016 /* PermissionsManager.swift */; };
+		F0000017 /* DisplayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000017 /* DisplayManager.swift */; };
+		F0000018 /* HostModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000018 /* HostModeManager.swift */; };
+		F0000019 /* iOSBroadcastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000019 /* iOSBroadcastManager.swift */; };
+		F0000020 /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000020 /* DeviceListView.swift */; };
+		F0000021 /* PairingModalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000021 /* PairingModalView.swift */; };
+		F0000022 /* SessionViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000022 /* SessionViewerView.swift */; };
+		F0000023 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000023 /* SettingsView.swift */; };
+		F0000024 /* RemoteDesktopUnitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000024 /* RemoteDesktopUnitTests.swift */; };
+		F0000025 /* LocalNetworkTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = R0000025 /* LocalNetworkTransport.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -18,6 +43,31 @@
 		A8413DD3129620B5EF33FB36 /* Remote Desktop-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Remote Desktop-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DF1B204476E7C0EB8B10641D /* Remote Desktop-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Remote Desktop-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E37F132326BBC6400CB3217A /* Remote DesktopApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Remote DesktopApp.swift"; sourceTree = "<group>"; };
+		R0000001 /* DeviceIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/DeviceIdentity.swift; sourceTree = "<group>"; };
+		R0000002 /* KeychainManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/KeychainManager.swift; sourceTree = "<group>"; };
+		R0000003 /* Device.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/Device.swift; sourceTree = "<group>"; };
+		R0000004 /* ProtocolEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/ProtocolEngine.swift; sourceTree = "<group>"; };
+		R0000005 /* BonjourDiscoveryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/BonjourDiscoveryManager.swift; sourceTree = "<group>"; };
+		R0000006 /* PairingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/PairingManager.swift; sourceTree = "<group>"; };
+		R0000007 /* ConnectionTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/ConnectionTransport.swift; sourceTree = "<group>"; };
+		R0000008 /* SignalingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/SignalingClient.swift; sourceTree = "<group>"; };
+		R0000009 /* NATTraversalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/NATTraversalEngine.swift; sourceTree = "<group>"; };
+		R0000010 /* VideoEncoderDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSession/VideoEncoderDecoder.swift; sourceTree = "<group>"; };
+		R0000011 /* ClipboardSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSession/ClipboardSyncManager.swift; sourceTree = "<group>"; };
+		R0000012 /* FileTransferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSession/FileTransferManager.swift; sourceTree = "<group>"; };
+		R0000013 /* RemoteSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSession/RemoteSessionManager.swift; sourceTree = "<group>"; };
+		R0000014 /* ScreenCaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = macOS/ScreenCaptureEngine.swift; sourceTree = "<group>"; };
+		R0000015 /* RemoteInputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = macOS/RemoteInputEngine.swift; sourceTree = "<group>"; };
+		R0000016 /* PermissionsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = macOS/PermissionsManager.swift; sourceTree = "<group>"; };
+		R0000017 /* DisplayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = macOS/DisplayManager.swift; sourceTree = "<group>"; };
+		R0000018 /* HostModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = macOS/HostModeManager.swift; sourceTree = "<group>"; };
+		R0000019 /* iOSBroadcastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOS/iOSBroadcastManager.swift; sourceTree = "<group>"; };
+		R0000020 /* DeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/DeviceListView.swift; sourceTree = "<group>"; };
+		R0000021 /* PairingModalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/PairingModalView.swift; sourceTree = "<group>"; };
+		R0000022 /* SessionViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/SessionViewerView.swift; sourceTree = "<group>"; };
+		R0000023 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/SettingsView.swift; sourceTree = "<group>"; };
+		R0000024 /* RemoteDesktopUnitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/RemoteDesktopUnitTests.swift; sourceTree = "<group>"; };
+		R0000025 /* LocalNetworkTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Networking/LocalNetworkTransport.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -50,6 +100,31 @@
 			children = (
 				7E3EE688102741E6C95AFAD9 /* ContentView.swift */,
 				E37F132326BBC6400CB3217A /* Remote DesktopApp.swift */,
+				R0000001 /* DeviceIdentity.swift */,
+				R0000002 /* KeychainManager.swift */,
+				R0000003 /* Device.swift */,
+				R0000004 /* ProtocolEngine.swift */,
+				R0000005 /* BonjourDiscoveryManager.swift */,
+				R0000006 /* PairingManager.swift */,
+				R0000007 /* ConnectionTransport.swift */,
+				R0000008 /* SignalingClient.swift */,
+				R0000009 /* NATTraversalEngine.swift */,
+				R0000010 /* VideoEncoderDecoder.swift */,
+				R0000011 /* ClipboardSyncManager.swift */,
+				R0000012 /* FileTransferManager.swift */,
+				R0000013 /* RemoteSessionManager.swift */,
+				R0000014 /* ScreenCaptureEngine.swift */,
+				R0000015 /* RemoteInputEngine.swift */,
+				R0000016 /* PermissionsManager.swift */,
+				R0000017 /* DisplayManager.swift */,
+				R0000018 /* HostModeManager.swift */,
+				R0000019 /* iOSBroadcastManager.swift */,
+				R0000020 /* DeviceListView.swift */,
+				R0000021 /* PairingModalView.swift */,
+				R0000022 /* SessionViewerView.swift */,
+				R0000023 /* SettingsView.swift */,
+				R0000024 /* RemoteDesktopUnitTests.swift */,
+				R0000025 /* LocalNetworkTransport.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -144,6 +219,30 @@
 			files = (
 				49C733113AAEA9A1413F4107 /* ContentView.swift in Sources */,
 				C2CAD658BB521A17DFC3D4A8 /* Remote DesktopApp.swift in Sources */,
+				F0000001 /* DeviceIdentity.swift in Sources */,
+				F0000002 /* KeychainManager.swift in Sources */,
+				F0000003 /* Device.swift in Sources */,
+				F0000004 /* ProtocolEngine.swift in Sources */,
+				F0000005 /* BonjourDiscoveryManager.swift in Sources */,
+				F0000006 /* PairingManager.swift in Sources */,
+				F0000007 /* ConnectionTransport.swift in Sources */,
+				F0000008 /* SignalingClient.swift in Sources */,
+				F0000009 /* NATTraversalEngine.swift in Sources */,
+				F0000010 /* VideoEncoderDecoder.swift in Sources */,
+				F0000011 /* ClipboardSyncManager.swift in Sources */,
+				F0000012 /* FileTransferManager.swift in Sources */,
+				F0000013 /* RemoteSessionManager.swift in Sources */,
+				F0000014 /* ScreenCaptureEngine.swift in Sources */,
+				F0000015 /* RemoteInputEngine.swift in Sources */,
+				F0000016 /* PermissionsManager.swift in Sources */,
+				F0000017 /* DisplayManager.swift in Sources */,
+				F0000018 /* HostModeManager.swift in Sources */,
+				F0000020 /* DeviceListView.swift in Sources */,
+				F0000021 /* PairingModalView.swift in Sources */,
+				F0000022 /* SessionViewerView.swift in Sources */,
+				F0000023 /* SettingsView.swift in Sources */,
+				F0000024 /* RemoteDesktopUnitTests.swift in Sources */,
+				F0000025 /* LocalNetworkTransport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -153,6 +252,26 @@
 			files = (
 				A32C353A0E8BB748B02A9949 /* ContentView.swift in Sources */,
 				3AA9787834ACCE0466880013 /* Remote DesktopApp.swift in Sources */,
+				F0000001 /* DeviceIdentity.swift in Sources */,
+				F0000002 /* KeychainManager.swift in Sources */,
+				F0000003 /* Device.swift in Sources */,
+				F0000004 /* ProtocolEngine.swift in Sources */,
+				F0000005 /* BonjourDiscoveryManager.swift in Sources */,
+				F0000006 /* PairingManager.swift in Sources */,
+				F0000007 /* ConnectionTransport.swift in Sources */,
+				F0000008 /* SignalingClient.swift in Sources */,
+				F0000009 /* NATTraversalEngine.swift in Sources */,
+				F0000010 /* VideoEncoderDecoder.swift in Sources */,
+				F0000011 /* ClipboardSyncManager.swift in Sources */,
+				F0000012 /* FileTransferManager.swift in Sources */,
+				F0000013 /* RemoteSessionManager.swift in Sources */,
+				F0000019 /* iOSBroadcastManager.swift in Sources */,
+				F0000020 /* DeviceListView.swift in Sources */,
+				F0000021 /* PairingModalView.swift in Sources */,
+				F0000022 /* SessionViewerView.swift in Sources */,
+				F0000023 /* SettingsView.swift in Sources */,
+				F0000024 /* RemoteDesktopUnitTests.swift in Sources */,
+				F0000025 /* LocalNetworkTransport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
