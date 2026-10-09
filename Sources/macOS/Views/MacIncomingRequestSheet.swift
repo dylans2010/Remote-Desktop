@@ -13,30 +13,64 @@ public struct MacIncomingRequestSheet: View {
         self.onDecision = onDecision
     }
 
-    public var body: some View {
-        VStack(spacing: 20) {
-            // Header
-            HStack(spacing: 16) {
-                Image(systemName: requester.platform == .macOS ? "macbook" : "iphone")
-                    .font(.system(size: 40))
-                    .foregroundColor(.blue)
+    private var platformIcon: String {
+        switch requester.platform {
+        case .macOS: return "macbook"
+        case .iOS: return "iphone"
+        case .iPadOS: return "ipad"
+        case .unknown: return "desktopcomputer"
+        }
+    }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Incoming Connection Request")
-                        .font(.headline)
-                    Text("\(requester.name) wants to connect to this Mac.")
+    public var body: some View {
+        VStack(spacing: 18) {
+            // Header Hero
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.12))
+                        .frame(width: 52, height: 52)
+
+                    Circle()
+                        .stroke(Color.blue.opacity(0.3), lineWidth: 1.5)
+                        .frame(width: 52, height: 52)
+
+                    Image(systemName: platformIcon)
+                        .font(.system(size: 26, weight: .medium))
+                        .foregroundColor(.blue)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text("Incoming Connection Request")
+                            .font(.headline)
+
+                        Text("NEW")
+                            .font(.system(size: 9, weight: .black))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1.5)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .clipShape(Capsule())
+                    }
+
+                    Text("\(requester.name) wants to connect to and view this Mac.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
+
                 Spacer()
             }
-
-            Divider()
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
 
             // Presets quick selection
-            HStack(spacing: 10) {
-                Text("Preset:")
-                    .font(.caption)
+            HStack(spacing: 8) {
+                Text("Presets:")
+                    .font(.caption.weight(.semibold))
                     .foregroundColor(.secondary)
 
                 Button("View Only") {
@@ -60,44 +94,56 @@ public struct MacIncomingRequestSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             // Permissions Checkboxes
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Select Permissions to Grant:")
-                    .font(.caption)
-                    .bold()
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Granted Session Permissions:")
+                    .font(.caption.weight(.bold))
                     .foregroundColor(.secondary)
 
-                Toggle("View Screen", isOn: $permissions.viewScreen)
-                    .disabled(true) // Always required to have a session
+                MacPermissionItem(icon: "display", color: .blue, title: "Screen Viewing", subtitle: "Required to view screen stream", isOn: .constant(true), disabled: true)
 
-                Toggle("Control Mouse", isOn: $permissions.mouse)
+                Divider()
+
+                MacPermissionItem(icon: "cursorarrow.rays", color: .green, title: "Mouse Control", subtitle: "Move cursor and click", isOn: $permissions.mouse, disabled: false)
                     .onChange(of: permissions.mouse) { _, newValue in
                         if newValue { permissions.controlScreen = true }
                     }
 
-                Toggle("Control Keyboard", isOn: $permissions.keyboard)
+                Divider()
+
+                MacPermissionItem(icon: "keyboard", color: .indigo, title: "Keyboard Control", subtitle: "Send keystrokes and shortcuts", isOn: $permissions.keyboard, disabled: false)
                     .onChange(of: permissions.keyboard) { _, newValue in
                         if newValue { permissions.controlScreen = true }
                     }
 
-                Toggle("Drawing & Annotations", isOn: $permissions.annotation)
+                Divider()
 
-                Toggle("Clipboard Synchronization", isOn: $permissions.clipboard)
+                MacPermissionItem(icon: "pencil.tip.crop.circle.badge.plus", color: .purple, title: "Drawing & Annotations", subtitle: "Draw on screen", isOn: $permissions.annotation, disabled: false)
 
-                Toggle("File Transfer", isOn: $permissions.fileTransfer)
+                Divider()
+
+                MacPermissionItem(icon: "doc.on.clipboard.fill", color: .orange, title: "Clipboard Sync", subtitle: "Bidirectional clipboard sharing", isOn: $permissions.clipboard, disabled: false)
+
+                Divider()
+
+                MacPermissionItem(icon: "folder.badge.gearshape", color: .teal, title: "File Transfer", subtitle: "Send and receive files", isOn: $permissions.fileTransfer, disabled: false)
             }
-            .padding()
+            .padding(14)
             .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(8)
+            .cornerRadius(12)
 
-            Toggle("Remember as default permissions for \(requester.name)", isOn: $rememberAsDefault)
-                .font(.caption)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.shield.fill")
+                    .foregroundColor(.green)
+                Toggle("Remember as default permissions for \(requester.name)", isOn: $rememberAsDefault)
+                    .font(.caption)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Divider()
 
             // Action Buttons
             HStack {
-                Button("Decline") {
+                Button("Decline Request") {
                     onDecision(false, .viewOnly)
                 }
                 .buttonStyle(.bordered)
@@ -105,17 +151,63 @@ public struct MacIncomingRequestSheet: View {
 
                 Spacer()
 
-                Button("Approve Connection") {
+                Button {
                     if rememberAsDefault {
                         TrustModel.shared.updateDefaultPermissions(for: requester.id, permissions: permissions)
                     }
                     onDecision(true, permissions)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                        Text("Approve Connection")
+                            .fontWeight(.semibold)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(Color.green)
+                    .foregroundColor(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
                 .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(24)
-        .frame(width: 440)
+        .padding(20)
+        .frame(width: 480)
+    }
+}
+
+private struct MacPermissionItem: View {
+    let icon: String
+    let color: Color
+    let title: String
+    let subtitle: String
+    @Binding var isOn: Bool
+    let disabled: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 26, height: 26)
+                .background(color)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: $isOn)
+                .toggleStyle(.switch)
+                .disabled(disabled)
+                .labelsHidden()
+        }
     }
 }

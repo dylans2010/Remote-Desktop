@@ -3,159 +3,243 @@ import SwiftUI
 /// Dedicated Host Session Management Interface for the Mac being viewed or controlled.
 public struct MacHostSessionView: View {
     @ObservedObject var viewModel: MacHostSessionViewModel
+    @State private var pulseRecording: Bool = false
 
     public init(viewModel: MacHostSessionViewModel) {
         self.viewModel = viewModel
     }
 
     public var body: some View {
-        VStack(spacing: 24) {
-            // Prominent Active Session Header
-            HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(Color.green.opacity(0.2))
-                        .frame(width: 48, height: 48)
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 16, height: 16)
-                }
+        ScrollView {
+            VStack(spacing: 20) {
+                // Prominent Active Session Header Banner
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.red.opacity(0.18))
+                            .frame(width: 48, height: 48)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text("Active Remote Session")
-                            .font(.title2)
-                            .bold()
-                        Text("● LIVE")
-                            .font(.caption2)
-                            .bold()
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.red)
-                            .foregroundColor(.white)
-                            .cornerRadius(4)
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 14, height: 14)
+                            .scaleEffect(pulseRecording ? 1.25 : 0.9)
+                            .animation(
+                                .easeInOut(duration: 1.2).repeatForever(autoreverses: true),
+                                value: pulseRecording
+                            )
                     }
 
-                    Text("Connected to \(viewModel.peerName) for \(viewModel.formattedDuration)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 8) {
+                            Text("Active Remote Screen Broadcast")
+                                .font(.title3.weight(.bold))
 
-                Spacer()
-
-                Button(action: { viewModel.showDiagnostics = true }) {
-                    Label("Diagnostics", systemImage: "chart.bar.xaxis")
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding()
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(12)
-
-            // Permissions Control Section
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text("Session Permissions")
-                        .font(.headline)
-                    Spacer()
-                    Text("Changes take effect immediately")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                // Presets selector
-                HStack(spacing: 8) {
-                    ForEach(SessionPreset.allCases) { preset in
-                        Button(preset.rawValue) {
-                            viewModel.applyPreset(preset)
+                            Text("LIVE")
+                                .font(.system(size: 10, weight: .black))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.red)
+                                .foregroundColor(.white)
+                                .clipShape(Capsule())
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+
+                        HStack(spacing: 8) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "macbook.and.iphone")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                Text("Controller: \(viewModel.peerName)")
+                                    .font(.subheadline.weight(.semibold))
+                            }
+
+                            Text("•")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+
+                            HStack(spacing: 4) {
+                                Image(systemName: "clock")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Text(viewModel.formattedDuration)
+                                    .font(.subheadline.monospacedDigit().weight(.bold))
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    Button {
+                        viewModel.showDiagnostics = true
+                    } label: {
+                        Label("Diagnostics", systemImage: "chart.bar.xaxis")
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Color.red.opacity(0.25), lineWidth: 1.2)
+                        )
+                )
+
+                // Permissions Control Section
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Label("Session Permissions", systemImage: "slider.horizontal.3")
+                            .font(.headline)
+                        Spacer()
+                        Text("Changes take effect immediately")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    // Presets selector
+                    HStack(spacing: 8) {
+                        Text("Quick Presets:")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.secondary)
+
+                        ForEach(SessionPreset.allCases) { preset in
+                            Button(preset.rawValue) {
+                                viewModel.applyPreset(preset)
+                                MacToastManager.shared.showInfo(
+                                    title: "Preset Applied",
+                                    message: "\(preset.rawValue) permissions configured."
+                                )
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+
+                    Divider()
+
+                    // Granular toggles
+                    VStack(spacing: 12) {
+                        MacHostPermissionToggle(
+                            title: "Screen Viewing",
+                            subtitle: "Remote peer can see this Mac's display",
+                            icon: "display",
+                            color: .blue,
+                            isOn: $viewModel.permissions.viewScreen,
+                            disabled: true
+                        )
+
+                        MacHostPermissionToggle(
+                            title: "Mouse Control",
+                            subtitle: "Remote peer can move cursor and click",
+                            icon: "cursorarrow.rays",
+                            color: .green,
+                            isOn: $viewModel.permissions.mouse,
+                            onChange: {
+                                viewModel.syncPermissionsToSession()
+                            }
+                        )
+
+                        MacHostPermissionToggle(
+                            title: "Keyboard Control",
+                            subtitle: "Remote peer can type and send keystrokes",
+                            icon: "keyboard",
+                            color: .indigo,
+                            isOn: $viewModel.permissions.keyboard,
+                            onChange: {
+                                viewModel.syncPermissionsToSession()
+                            }
+                        )
+
+                        MacHostPermissionToggle(
+                            title: "Drawing & Annotations",
+                            subtitle: "Remote peer can draw visual indicators on screen",
+                            icon: "pencil.tip.crop.circle.badge.plus",
+                            color: .purple,
+                            isOn: $viewModel.permissions.annotation,
+                            onChange: {
+                                viewModel.syncPermissionsToSession()
+                            }
+                        )
+
+                        MacHostPermissionToggle(
+                            title: "Clipboard Sync",
+                            subtitle: "Synchronize text and images copied between machines",
+                            icon: "doc.on.clipboard.fill",
+                            color: .orange,
+                            isOn: $viewModel.permissions.clipboard,
+                            onChange: {
+                                viewModel.syncPermissionsToSession()
+                            }
+                        )
+
+                        MacHostPermissionToggle(
+                            title: "File Transfer",
+                            subtitle: "Allow receiving files from remote peer",
+                            icon: "folder.badge.gearshape",
+                            color: .teal,
+                            isOn: $viewModel.permissions.fileTransfer,
+                            onChange: {
+                                viewModel.syncPermissionsToSession()
+                            }
+                        )
                     }
                 }
+                .padding(18)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                )
 
-                Divider()
+                // Authoritative Stop Session Card
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("End Remote Screen Broadcast")
+                            .font(.headline)
+                        Text("Immediately terminates video stream and revokes all remote control access.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
 
-                // Granular toggles
-                VStack(spacing: 12) {
-                    permissionToggle(
-                        title: "Screen Viewing",
-                        subtitle: "Remote peer can see this Mac's display",
-                        systemImage: "eye.fill",
-                        isOn: $viewModel.permissions.viewScreen,
-                        disabled: true
-                    )
+                    Spacer()
 
-                    permissionToggle(
-                        title: "Mouse Control",
-                        subtitle: "Remote peer can move cursor and click",
-                        systemImage: "cursorarrow.rays",
-                        isOn: $viewModel.permissions.mouse
-                    )
-
-                    permissionToggle(
-                        title: "Keyboard Control",
-                        subtitle: "Remote peer can type and send keystrokes",
-                        systemImage: "keyboard",
-                        isOn: $viewModel.permissions.keyboard
-                    )
-
-                    permissionToggle(
-                        title: "Drawing & Annotations",
-                        subtitle: "Remote peer can draw visual indicators on screen",
-                        systemImage: "pencil.tip",
-                        isOn: $viewModel.permissions.annotation
-                    )
-
-                    permissionToggle(
-                        title: "Clipboard Sync",
-                        subtitle: "Synchronize text and images copied between machines",
-                        systemImage: "doc.on.clipboard",
-                        isOn: $viewModel.permissions.clipboard
-                    )
-
-                    permissionToggle(
-                        title: "File Transfer",
-                        subtitle: "Allow receiving files from remote peer",
-                        systemImage: "folder.badge.gearshape",
-                        isOn: $viewModel.permissions.fileTransfer
-                    )
-                }
-            }
-            .padding()
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(12)
-
-            Spacer()
-
-            // Authoritative Stop Session Button
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("End Remote Control")
-                        .font(.headline)
-                    Text("Immediately terminates video stream and revokes all remote control.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                Button(action: { viewModel.stopSession() }) {
-                    Label("Stop Session", systemImage: "stop.circle.fill")
-                        .font(.headline)
-                        .foregroundColor(.white)
+                    Button {
+                        viewModel.stopSession()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "stop.circle.fill")
+                            Text("Stop Session")
+                                .fontWeight(.bold)
+                        }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(Color.red)
-                        .cornerRadius(8)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.red, Color(red: 0.85, green: 0.15, blue: 0.15)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .foregroundColor(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .shadow(color: Color.red.opacity(0.3), radius: 4, x: 0, y: 2)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.red.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Color.red.opacity(0.2), lineWidth: 1)
+                        )
+                )
             }
-            .padding()
-            .background(Color.red.opacity(0.08))
-            .cornerRadius(12)
+            .padding(24)
         }
-        .padding(24)
+        .onAppear {
+            pulseRecording = true
+        }
         .sheet(isPresented: $viewModel.showDiagnostics) {
             MacDiagnosticsView(
                 metrics: viewModel.healthMetrics,
@@ -165,30 +249,41 @@ public struct MacHostSessionView: View {
             )
         }
     }
+}
 
-    private func permissionToggle(title: String, subtitle: String, systemImage: String, isOn: Binding<Bool>, disabled: Bool = false) -> some View {
+private struct MacHostPermissionToggle: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    @Binding var isOn: Bool
+    var disabled: Bool = false
+    var onChange: (() -> Void)? = nil
+
+    var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.title3)
-                .foregroundColor(isOn.wrappedValue ? .blue : .secondary)
-                .frame(width: 24)
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 28, height: 28)
+                .background(color)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.body)
-                    .bold()
+                    .font(.body.weight(.medium))
                 Text(subtitle)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundColor(.secondary)
             }
 
             Spacer()
 
-            Toggle("", isOn: isOn)
+            Toggle("", isOn: $isOn)
                 .toggleStyle(.switch)
                 .disabled(disabled)
-                .onChange(of: isOn.wrappedValue) { _, _ in
-                    viewModel.syncPermissionsToSession()
+                .onChange(of: isOn) { _, _ in
+                    onChange?()
                 }
         }
     }

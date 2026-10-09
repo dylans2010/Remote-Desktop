@@ -11,35 +11,70 @@ public struct MacSessionViewerView: View {
         self.viewModel = viewModel
     }
 
+    private var latencyColor: Color {
+        if viewModel.latencyMs <= 0 {
+            return .gray
+        } else if viewModel.latencyMs < 45 {
+            return .green
+        } else if viewModel.latencyMs < 90 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+
     public var body: some View {
         VStack(spacing: 0) {
-            // Controller Toolbar
-            HStack(spacing: 12) {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(viewModel.connectionState == .connected ? Color.green : (viewModel.isErrorState ? Color.red : Color.orange))
-                        .frame(width: 10, height: 10)
-                    Text(viewModel.peerName)
-                        .font(.headline)
-                    Text("\(Int(viewModel.latencyMs)) ms")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(viewModel.isRelayed ? "Relayed" : "Direct P2P")
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.green.opacity(0.2))
-                        .cornerRadius(4)
+            // Controller Toolbar (Glassmorphic dark header)
+            HStack(spacing: 14) {
+                // Peer Identity & Latency Group
+                HStack(spacing: 10) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.blue.opacity(0.2))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "macbook.and.iphone")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.blue)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(viewModel.peerName)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundColor(.white)
+
+                        HStack(spacing: 6) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "gauge.with.needle.fill")
+                                    .font(.system(size: 9))
+                                Text("\(Int(viewModel.latencyMs)) ms")
+                                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            }
+                            .foregroundColor(latencyColor)
+
+                            HStack(spacing: 3) {
+                                Image(systemName: viewModel.isRelayed ? "arrow.triangle.swap" : "bolt.shield.fill")
+                                    .font(.system(size: 8))
+                                Text(viewModel.isRelayed ? "Relay" : "Direct P2P")
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1.5)
+                            .background(viewModel.isRelayed ? Color.orange.opacity(0.85) : Color.green.opacity(0.85))
+                            .foregroundColor(.white)
+                            .clipShape(Capsule())
+                        }
+                    }
                 }
 
                 Spacer()
 
-                // Tool Palette (Available only when connected)
+                // Tool Palette (Available when connected)
                 if viewModel.connectionState == .connected {
                     HStack(spacing: 8) {
                         if viewModel.permissions.mouse {
                             Image(systemName: "cursorarrow.rays")
-                                .foregroundColor(.blue)
+                                .foregroundColor(.green)
                                 .help("Mouse Control Enabled")
                         }
                         if viewModel.permissions.keyboard {
@@ -50,12 +85,20 @@ public struct MacSessionViewerView: View {
 
                         Divider().frame(height: 18)
 
+                        // Annotation Toggle & Tool Selector
                         if viewModel.permissions.annotation {
-                            Button(action: { isAnnotationModeActive.toggle() }) {
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    isAnnotationModeActive.toggle()
+                                }
+                                if isAnnotationModeActive {
+                                    MacToastManager.shared.showInfo(title: "Annotation Mode", message: "Draw on screen to collaborate.")
+                                }
+                            } label: {
                                 Label("Draw", systemImage: isAnnotationModeActive ? "pencil.tip.crop.circle.badge.plus.fill" : "pencil.tip")
+                                    .foregroundColor(isAnnotationModeActive ? .yellow : .primary)
                             }
                             .buttonStyle(.bordered)
-                            .tint(isAnnotationModeActive ? .accentColor : .secondary)
                             .help("Toggle Drawing & Annotations")
 
                             if isAnnotationModeActive {
@@ -65,44 +108,85 @@ public struct MacSessionViewerView: View {
                                     }
                                 }
                                 .pickerStyle(.segmented)
-                                .frame(width: 130)
+                                .frame(width: 140)
 
-                                Button(action: { viewModel.undoLastAnnotation() }) {
+                                Button {
+                                    viewModel.undoLastAnnotation()
+                                } label: {
                                     Image(systemName: "arrow.uturn.backward")
                                 }
-                                .help("Undo Annotation")
+                                .buttonStyle(.bordered)
+                                .help("Undo Last Stroke")
 
-                                Button(action: { viewModel.clearAnnotations() }) {
+                                Button {
+                                    viewModel.clearAnnotations()
+                                    MacToastManager.shared.showInfo(title: "Annotations Cleared", message: nil)
+                                } label: {
                                     Image(systemName: "trash")
+                                        .foregroundColor(.red)
                                 }
+                                .buttonStyle(.bordered)
                                 .help("Clear All Annotations")
                             }
                         }
 
-                        Button(action: { viewModel.showFileTransferModal = true }) {
-                            Image(systemName: "arrow.up.doc")
+                        Button {
+                            viewModel.showFileTransferModal = true
+                        } label: {
+                            Image(systemName: "arrow.up.doc.fill")
                         }
+                        .buttonStyle(.bordered)
                         .disabled(!viewModel.permissions.fileTransfer)
-                        .help("Send File")
+                        .help("Send File to Remote")
                     }
                 }
 
-                Button(action: { viewModel.showDiagnostics = true }) {
+                Button {
+                    viewModel.showDiagnostics = true
+                } label: {
                     Image(systemName: "chart.bar.xaxis")
                 }
+                .buttonStyle(.bordered)
                 .help("Session Diagnostics")
 
-                // Prominent Disconnect / Leave Button
-                Button(action: { viewModel.disconnect() }) {
-                    Text(viewModel.isErrorState ? "Close" : "Disconnect")
-                        .bold()
-                        .foregroundColor(.red)
+                // Disconnect Button
+                Button {
+                    viewModel.disconnect()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .bold))
+                        Text(viewModel.isErrorState ? "Close" : "Disconnect")
+                            .fontWeight(.bold)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.red)
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color(NSColor.windowBackgroundColor))
+            .background(Color.black.opacity(0.92))
+
+            // Latency Alert Banner (High latency drop-down)
+            if viewModel.connectionState == .connected && viewModel.latencyMs > 120 {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundColor(.orange)
+                    Text("High network latency (\(Int(viewModel.latencyMs)) ms) • Quality dynamically adapted")
+                        .font(.caption2.weight(.medium))
+                        .foregroundColor(.white)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+                .background(Color.orange.opacity(0.3))
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
             Divider()
 
@@ -137,16 +221,20 @@ public struct MacSessionViewerView: View {
                             }
                         )
                     } else if viewModel.isErrorState {
-                        // Actionable Error View (Section 5, 26) - Stays visible instead of silently popping!
+                        // Actionable Error Card
                         VStack(spacing: 20) {
-                            Image(systemName: errorSystemIcon(for: viewModel.connectionState))
-                                .font(.system(size: 56))
-                                .foregroundColor(.red)
+                            ZStack {
+                                Circle()
+                                    .fill(Color.red.opacity(0.18))
+                                    .frame(width: 72, height: 72)
+                                Image(systemName: errorSystemIcon(for: viewModel.connectionState))
+                                    .font(.system(size: 36))
+                                    .foregroundColor(.red)
+                            }
 
                             VStack(spacing: 8) {
                                 Text(viewModel.connectionState.statusDescription)
-                                    .font(.title2)
-                                    .bold()
+                                    .font(.title2.weight(.bold))
                                     .foregroundColor(.white)
 
                                 Text(viewModel.errorMessage ?? defaultErrorDetail(for: viewModel.connectionState))
@@ -155,24 +243,6 @@ public struct MacSessionViewerView: View {
                                     .multilineTextAlignment(.center)
                                     .frame(maxWidth: 480)
                             }
-
-                            // Diagnostic summary
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Diagnostic Summary")
-                                    .font(.caption)
-                                    .bold()
-                                    .foregroundColor(.secondary)
-                                HStack(spacing: 20) {
-                                    Text("Capture: \(viewModel.connectionState == .captureUnavailable ? "Denied" : "OK")")
-                                    Text("Transport: \(viewModel.connectionState == .transportFailed ? "Failed" : "OK")")
-                                    Text("Frames Received: \(viewModel.healthMetrics.framesReceived)")
-                                }
-                                .font(.caption2)
-                                .foregroundColor(.white)
-                            }
-                            .padding(12)
-                            .background(Color.secondary.opacity(0.15))
-                            .cornerRadius(8)
 
                             HStack(spacing: 16) {
                                 Button("Retry Connection") {
@@ -192,27 +262,40 @@ public struct MacSessionViewerView: View {
                                 .foregroundColor(.red)
                             }
                         }
+                        .padding(28)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(Color.white.opacity(0.06))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                        .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                                )
+                        )
                         .padding(32)
                     } else if viewModel.isStreamTimedOut {
-                        // Blank Screen Watchdog View (Section 15)
-                        VStack(spacing: 16) {
-                            Image(systemName: "video.slash.fill")
-                                .font(.system(size: 48))
-                                .foregroundColor(.orange)
+                        // Blank Screen Watchdog View
+                        VStack(spacing: 18) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.orange.opacity(0.18))
+                                    .frame(width: 64, height: 64)
+                                Image(systemName: "video.slash.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(.orange)
+                            }
 
-                            Text("Screen stream failed")
-                                .font(.title2)
-                                .bold()
+                            Text("Screen Stream Paused")
+                                .font(.title2.weight(.bold))
                                 .foregroundColor(.white)
 
-                            Text("The connection is authenticated, but no video frames are arriving from \(viewModel.peerName).")
+                            Text("Connected to \(viewModel.peerName), but no video frames are arriving.")
                                 .font(.callout)
                                 .foregroundColor(.gray)
                                 .multilineTextAlignment(.center)
-                                .frame(maxWidth: 460)
+                                .frame(maxWidth: 440)
 
                             HStack(spacing: 16) {
-                                Button("Retry Stream") {
+                                Button("Resume Stream") {
                                     viewModel.retryStream()
                                 }
                                 .buttonStyle(.borderedProminent)
@@ -229,14 +312,18 @@ public struct MacSessionViewerView: View {
                                 .foregroundColor(.red)
                             }
                         }
+                        .padding(28)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(Color.white.opacity(0.06))
+                        )
                     } else {
-                        // Connection Progress State (Section 5, 26)
-                        VStack(spacing: 16) {
+                        // Connection Progress State
+                        VStack(spacing: 18) {
                             ProgressView()
                                 .controlSize(.large)
                             Text(viewModel.connectionState.statusDescription)
-                                .font(.title3)
-                                .bold()
+                                .font(.title3.weight(.bold))
                                 .foregroundColor(.white)
                             Text("Connecting to \(viewModel.peerName)...")
                                 .font(.callout)
@@ -246,7 +333,7 @@ public struct MacSessionViewerView: View {
                                 viewModel.disconnect()
                             }
                             .buttonStyle(.bordered)
-                            .padding(.top, 12)
+                            .padding(.top, 8)
                         }
                     }
                 }
@@ -291,6 +378,73 @@ public struct MacSessionViewerView: View {
         default:
             return "The session could not be established."
         }
+    }
+}
+
+// MARK: - File Transfer Modal View
+
+struct MacFileTransferModalView: View {
+    @ObservedObject var viewModel: MacSessionViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedFileURL: URL?
+
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.up.doc.fill")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                Text("Encrypted File Transfer")
+                    .font(.headline)
+            }
+
+            if let url = selectedFileURL {
+                VStack(spacing: 8) {
+                    Image(systemName: "doc.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.blue)
+                    Text(url.lastPathComponent)
+                        .font(.subheadline.weight(.semibold))
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color(NSColor.controlBackgroundColor)))
+
+                Button("Send File to Remote") {
+                    viewModel.sendFile(url: url)
+                    MacToastManager.shared.showSuccess(
+                        title: "File Sending",
+                        message: "Sending \(url.lastPathComponent) to \(viewModel.peerName)."
+                    )
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            } else {
+                Text("Select a file to transfer securely to \(viewModel.peerName):")
+                    .foregroundColor(.secondary)
+                    .font(.callout)
+
+                Button("Choose File…") {
+                    let panel = NSOpenPanel()
+                    panel.allowsMultipleSelection = false
+                    panel.canChooseDirectories = false
+                    if panel.runModal() == .OK, let url = panel.url {
+                        selectedFileURL = url
+                    }
+                }
+                .buttonStyle(.bordered)
+            }
+
+            Divider()
+
+            Button("Close") {
+                dismiss()
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.secondary)
+        }
+        .padding(24)
+        .frame(width: 380, height: 260)
     }
 }
 
@@ -516,67 +670,9 @@ public final class MacSessionViewModel: ObservableObject, RemoteSessionDelegate,
     }
 
     public func remoteSessionDidEnd(_ session: RemoteSessionManager, reason: String, endedByHost: Bool) {
-        DispatchQueue.main.async {
-            self.frameWatchdogTimer?.invalidate()
-            self.onDisconnect?()
+        DispatchQueue.main.async { [weak self] in
+            self?.frameWatchdogTimer?.invalidate()
+            self?.onDisconnect?()
         }
-    }
-}
-
-// MARK: - File Transfer Modal View
-
-struct MacFileTransferModalView: View {
-    @ObservedObject var viewModel: MacSessionViewModel
-    @Environment(\.dismiss) private var dismiss
-    @State private var selectedFileURL: URL?
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("File Transfer")
-                .font(.headline)
-
-            if let url = selectedFileURL {
-                VStack(spacing: 8) {
-                    Image(systemName: "doc.fill")
-                        .font(.system(size: 36))
-                        .foregroundColor(.blue)
-                    Text(url.lastPathComponent)
-                        .font(.subheadline)
-                        .bold()
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.1)))
-
-                Button("Send File to Remote") {
-                    viewModel.sendFile(url: url)
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-            } else {
-                Text("Select a file to send to \(viewModel.peerName):")
-                    .foregroundColor(.secondary)
-
-                Button("Choose File…") {
-                    let panel = NSOpenPanel()
-                    panel.allowsMultipleSelection = false
-                    panel.canChooseDirectories = false
-                    if panel.runModal() == .OK, let url = panel.url {
-                        selectedFileURL = url
-                    }
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Divider()
-
-            Button("Close") {
-                dismiss()
-            }
-            .buttonStyle(.plain)
-            .foregroundColor(.secondary)
-        }
-        .padding(24)
-        .frame(width: 360, height: 260)
     }
 }

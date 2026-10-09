@@ -12,63 +12,141 @@ public struct IOSSessionViewerView: View {
         self.viewModel = viewModel
     }
 
+    private var latencyColor: Color {
+        if viewModel.latencyMs <= 0 {
+            return .gray
+        } else if viewModel.latencyMs < 45 {
+            return .green
+        } else if viewModel.latencyMs < 90 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+
     public var body: some View {
         VStack(spacing: 0) {
-            // Status bar header
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(viewModel.peerName)
-                        .font(.headline)
+            // Glass Floating HUD Header
+            HStack(spacing: 12) {
+                // Peer Name & Platform Pill
+                HStack(spacing: 8) {
+                    Image(systemName: "macbook")
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.white)
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(viewModel.connectionState == .connected ? Color.green : (viewModel.isErrorState ? Color.red : Color.orange))
-                            .frame(width: 8, height: 8)
-                        Text("\(Int(viewModel.latencyMs)) ms")
-                            .font(.caption2)
-                            .foregroundColor(.gray)
-                        Text(viewModel.isRelayed ? "Relay" : "Direct P2P")
-                            .font(.caption2)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(Color.green)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(viewModel.peerName)
+                            .font(.subheadline.weight(.bold))
                             .foregroundColor(.white)
-                            .cornerRadius(3)
+                            .lineLimit(1)
+
+                        HStack(spacing: 6) {
+                            // Latency Pill
+                            HStack(spacing: 3) {
+                                Image(systemName: "gauge.with.needle.fill")
+                                    .font(.system(size: 9))
+                                Text("\(Int(viewModel.latencyMs)) ms")
+                                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            }
+                            .foregroundColor(latencyColor)
+
+                            // Route Badge
+                            HStack(spacing: 3) {
+                                Image(systemName: viewModel.isRelayed ? "arrow.triangle.swap" : "bolt.shield.fill")
+                                    .font(.system(size: 8))
+                                Text(viewModel.isRelayed ? "Relay" : "Direct P2P")
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1.5)
+                            .background(viewModel.isRelayed ? Color.orange.opacity(0.85) : Color.green.opacity(0.85))
+                            .foregroundColor(.white)
+                            .clipShape(Capsule())
+                        }
                     }
                 }
 
                 Spacer()
 
-                HStack(spacing: 12) {
+                // Actions Group
+                HStack(spacing: 10) {
                     if viewModel.connectionState == .connected && viewModel.permissions.annotation {
-                        Button(action: { isAnnotationModeActive.toggle() }) {
+                        Button {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                isAnnotationModeActive.toggle()
+                            }
+                            if isAnnotationModeActive {
+                                ToastManager.shared.showInfo(title: "Annotation Mode", message: "Draw on the screen to collaborate.")
+                            }
+                        } label: {
                             Image(systemName: isAnnotationModeActive ? "pencil.tip.crop.circle.badge.plus.fill" : "pencil.tip")
-                                .font(.title3)
+                                .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(isAnnotationModeActive ? .yellow : .white)
+                                .padding(8)
+                                .background(isAnnotationModeActive ? Color.yellow.opacity(0.25) : Color.white.opacity(0.12))
+                                .clipShape(Circle())
                         }
                     }
 
-                    Button(action: { viewModel.showDiagnostics = true }) {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        viewModel.showDiagnostics = true
+                    } label: {
                         Image(systemName: "chart.bar.xaxis")
-                            .font(.title3)
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color.white.opacity(0.12))
+                            .clipShape(Circle())
                     }
 
-                    Button(action: { viewModel.disconnect() }) {
-                        Text(viewModel.isErrorState ? "Close" : "Disconnect")
-                            .font(.subheadline)
-                            .bold()
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.red)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
+                    Button {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        viewModel.disconnect()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 11, weight: .bold))
+                            Text(viewModel.isErrorState ? "Close" : "Disconnect")
+                                .font(.caption.weight(.bold))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .clipShape(Capsule())
                     }
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(Color.black)
+            .background(
+                Color.black.opacity(0.92)
+                    .overlay(
+                        Rectangle()
+                            .fill(Color.white.opacity(0.1))
+                            .frame(height: 1),
+                        alignment: .bottom
+                    )
+            )
+
+            // High Latency Alert Banner (if latency exceeds 120ms during connection)
+            if viewModel.connectionState == .connected && viewModel.latencyMs > 120 {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundColor(.orange)
+                    Text("High network latency (\(Int(viewModel.latencyMs)) ms) • Video quality dynamically adapted")
+                        .font(.caption2.weight(.medium))
+                        .foregroundColor(.white)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(Color.orange.opacity(0.25))
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
             // Remote Screen Viewport
             GeometryReader { geometry in
@@ -134,16 +212,20 @@ public struct IOSSessionViewerView: View {
                                 }
                         )
                     } else if viewModel.isErrorState {
-                        // Actionable Error View (Section 5, 26) - Never immediately pops!
+                        // Actionable Error View with visual punch
                         VStack(spacing: 20) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 48))
-                                .foregroundColor(.red)
+                            ZStack {
+                                Circle()
+                                    .fill(Color.red.opacity(0.15))
+                                    .frame(width: 72, height: 72)
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 36))
+                                    .foregroundColor(.red)
+                            }
 
                             VStack(spacing: 8) {
                                 Text(viewModel.connectionState.statusDescription)
-                                    .font(.title2)
-                                    .bold()
+                                    .font(.title3.weight(.bold))
                                     .foregroundColor(.white)
 
                                 Text(viewModel.errorMessage ?? "The connection could not be established.")
@@ -153,112 +235,196 @@ public struct IOSSessionViewerView: View {
                                     .padding(.horizontal, 24)
                             }
 
-                            HStack(spacing: 16) {
-                                Button("Retry Connection") {
+                            HStack(spacing: 14) {
+                                Button {
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                     viewModel.retryConnection()
+                                } label: {
+                                    Label("Retry", systemImage: "arrow.clockwise")
+                                        .font(.subheadline.weight(.semibold))
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                        .background(Color.blue)
+                                        .foregroundColor(.white)
+                                        .clipShape(Capsule())
                                 }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
 
-                                Button("Return to Devices") {
+                                Button {
                                     viewModel.disconnect()
+                                } label: {
+                                    Text("Return to Devices")
+                                        .font(.subheadline.weight(.medium))
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                        .background(Color.white.opacity(0.15))
+                                        .foregroundColor(.white)
+                                        .clipShape(Capsule())
                                 }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(Color.gray.opacity(0.3))
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
+                            }
+                        }
+                        .padding(28)
+                        .background(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .fill(Color.white.opacity(0.06))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                        .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                                )
+                        )
+                        .padding(24)
+                    } else if viewModel.isStreamTimedOut {
+                        // Blank Screen Detection Banner / Card
+                        VStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.orange.opacity(0.15))
+                                    .frame(width: 64, height: 64)
+                                Image(systemName: "video.slash.fill")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.orange)
+                            }
+
+                            VStack(spacing: 4) {
+                                Text("Screen Stream Paused")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+
+                                Text("Connected to \(viewModel.peerName), but video frames have stalled.")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                            }
+
+                            HStack(spacing: 14) {
+                                Button {
+                                    viewModel.retryStream()
+                                } label: {
+                                    Label("Resume Stream", systemImage: "play.fill")
+                                        .font(.caption.weight(.semibold))
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 8)
+                                        .background(Color.blue)
+                                        .foregroundColor(.white)
+                                        .clipShape(Capsule())
+                                }
+
+                                Button {
+                                    viewModel.disconnect()
+                                } label: {
+                                    Text("Disconnect")
+                                        .font(.caption.weight(.medium))
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 8)
+                                        .background(Color.white.opacity(0.15))
+                                        .foregroundColor(.red)
+                                        .clipShape(Capsule())
+                                }
                             }
                         }
                         .padding(24)
-                    } else if viewModel.isStreamTimedOut {
-                        // Blank Screen Detection (Section 15)
-                        VStack(spacing: 16) {
-                            Image(systemName: "video.slash.fill")
-                                .font(.system(size: 48))
-                                .foregroundColor(.orange)
-
-                            Text("Screen stream failed")
-                                .font(.title3)
-                                .bold()
-                                .foregroundColor(.white)
-
-                            Text("Connected to \(viewModel.peerName), but no video frames are arriving.")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-
-                            HStack(spacing: 12) {
-                                Button("Retry Stream") {
-                                    viewModel.retryStream()
-                                }
-                                .buttonStyle(.borderedProminent)
-
-                                Button("Disconnect") {
-                                    viewModel.disconnect()
-                                }
-                                .buttonStyle(.bordered)
-                                .foregroundColor(.red)
-                            }
-                        }
+                        .background(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(Color.white.opacity(0.06))
+                        )
                     } else {
-                        // Connecting Progress View (Section 5, 26)
-                        VStack(spacing: 16) {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(1.4)
-                            Text(viewModel.connectionState.statusDescription)
-                                .font(.title3)
-                                .foregroundColor(.white)
-                            Text("Connecting to \(viewModel.peerName)...")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-
-                            Button("Cancel") {
-                                viewModel.disconnect()
+                        // Connecting Progress View with modern pulsing visuals
+                        VStack(spacing: 18) {
+                            ZStack {
+                                Circle()
+                                    .stroke(Color.blue.opacity(0.3), lineWidth: 2)
+                                    .frame(width: 64, height: 64)
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                                    .scaleEffect(1.4)
                             }
-                            .padding(.top, 8)
-                            .foregroundColor(.red)
+
+                            VStack(spacing: 4) {
+                                Text(viewModel.connectionState.statusDescription)
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                Text("Connecting to \(viewModel.peerName)...")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+
+                            Button {
+                                viewModel.disconnect()
+                            } label: {
+                                Text("Cancel")
+                                    .font(.caption.weight(.semibold))
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 6)
+                                    .background(Color.white.opacity(0.12))
+                                    .foregroundColor(.red)
+                                    .clipShape(Capsule())
+                            }
+                            .padding(.top, 4)
                         }
                     }
                 }
             }
 
-            // Annotation Palette Bar
+            // Annotation Palette Bar (Floating Dock)
             if isAnnotationModeActive && viewModel.permissions.annotation {
-                HStack(spacing: 20) {
+                HStack(spacing: 18) {
                     ForEach(AnnotationTool.allCases, id: \.self) { tool in
-                        Button(action: { annotationTool = tool }) {
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            annotationTool = tool
+                        } label: {
                             Image(systemName: tool.systemImageName)
+                                .font(.system(size: 18, weight: .semibold))
                                 .foregroundColor(annotationTool == tool ? .yellow : .white)
+                                .padding(8)
+                                .background(annotationTool == tool ? Color.yellow.opacity(0.2) : Color.clear)
+                                .clipShape(Circle())
                         }
                     }
 
                     Spacer()
 
-                    Button(action: {
+                    Button {
                         if !viewModel.annotationStrokes.isEmpty {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             viewModel.annotationStrokes.removeLast()
                             viewModel.handleAnnotationAction(stroke: nil, action: .undo, point: nil)
                         }
-                    }) {
+                    } label: {
                         Image(systemName: "arrow.uturn.backward")
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color.white.opacity(0.12))
+                            .clipShape(Circle())
                     }
 
-                    Button(action: {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         viewModel.annotationStrokes.removeAll()
                         viewModel.handleAnnotationAction(stroke: nil, action: .clear, point: nil)
-                    }) {
+                        ToastManager.shared.showInfo(title: "Annotations Cleared", message: nil)
+                    } label: {
                         Image(systemName: "trash")
-                            .foregroundColor(.white)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.red)
+                            .padding(8)
+                            .background(Color.red.opacity(0.15))
+                            .clipShape(Circle())
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-                .background(Color.black.opacity(0.85))
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(Color.black.opacity(0.9))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        )
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .background(Color.black)
             }
         }
         .sheet(isPresented: $viewModel.showDiagnostics) {

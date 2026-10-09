@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 public struct MacPairingModalView: View {
     @Environment(\.dismiss) private var dismiss
@@ -15,47 +16,186 @@ public struct MacPairingModalView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 20) {
-            Text("Add Device")
-                .font(.title2)
-                .bold()
+        VStack(spacing: 18) {
+            // Header Banner
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.12))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: "link.badge.plus")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.blue)
+                }
 
-            VStack(spacing: 8) {
-                Text("This Mac's Pairing Code:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(generatedCode)
-                    .font(.system(size: 32, weight: .bold, design: .monospaced))
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 8)
-                    .background(Color.secondary.opacity(0.15))
-                    .cornerRadius(8)
-                Text("Share this 6-digit code with the device you wish to pair with.")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Secure Device Pairing")
+                        .font(.headline)
+                    Text("Pair devices to authorize low-latency remote desktop streaming.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
             }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.blue.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                    )
+            )
+
+            // Card 1: This Mac's Pairing Code
+            VStack(spacing: 12) {
+                HStack {
+                    Label("This Mac's Pairing Code", systemImage: "macbook")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        generatedCode = PairingManager.shared.generatePairingCode()
+                        MacToastManager.shared.showInfo(
+                            title: "New Code Generated",
+                            message: "Enter this updated code on the remote machine."
+                        )
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.blue)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Generate fresh pairing code")
+                }
+
+                // Monospaced 6-digit boxes
+                HStack(spacing: 8) {
+                    ForEach(Array(generatedCode.enumerated()), id: \.offset) { index, char in
+                        Text(String(char))
+                            .font(.system(size: 26, weight: .bold, design: .monospaced))
+                            .foregroundColor(.blue)
+                            .frame(width: 38, height: 48)
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(Color.blue.opacity(0.3), lineWidth: 1.2)
+                            )
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(generatedCode, forType: .string)
+                        MacToastManager.shared.showSuccess(
+                            title: "Code Copied",
+                            message: "Pairing code \(generatedCode) copied to clipboard."
+                        )
+                    } label: {
+                        Label("Copy Code", systemImage: "doc.on.doc.fill")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.blue.opacity(0.12))
+                            .foregroundColor(.blue)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    Text("Enter on remote device to establish trust")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
+
+            // Card 2: Enter Remote Code
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Or Enter Remote Device Code", systemImage: "iphone.and.arrow.forward")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.secondary)
+
+                HStack(spacing: 8) {
+                    TextField("6-digit code (e.g. 839274)", text: $inputPairingCode)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                        .disabled(isPairingInProgress)
+
+                    if !inputPairingCode.isEmpty {
+                        Button {
+                            inputPairingCode = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Button {
+                        if let pasted = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                           pasted.count == 6, pasted.allSatisfy({ $0.isNumber }) {
+                            inputPairingCode = pasted
+                            MacToastManager.shared.showSuccess(title: "Code Pasted", message: pasted)
+                        } else {
+                            MacToastManager.shared.showWarning(title: "Invalid Clipboard", message: "Clipboard does not contain a 6-digit code.")
+                        }
+                    } label: {
+                        Image(systemName: "doc.on.clipboard.fill")
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                    }
+                    .buttonStyle(.bordered)
+                    .help("Paste code from clipboard")
+                }
+
+                if let error = errorMessage {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                        Text(error)
+                    }
+                    .font(.caption)
+                    .foregroundColor(.red)
+                }
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
+
+            // Security Banner
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "lock.shield.fill")
+                    .font(.subheadline)
+                    .foregroundColor(.green)
+                    .padding(.top, 1)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Mutual Cryptographic Verification")
+                        .font(.caption.weight(.semibold))
+                    Text("Pairing exchanges authenticated public keys stored securely in your macOS Keychain.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.green.opacity(0.08))
+            )
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Enter pairing code shown on remote device:")
-                    .font(.callout)
-
-                TextField("6-digit code (e.g. 839274)", text: $inputPairingCode)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 18, design: .monospaced))
-                    .disabled(isPairingInProgress)
-            }
-
-            if let error = errorMessage {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                    Text(error)
-                }
-                .font(.caption)
-                .foregroundColor(.red)
-            }
-
+            // Actions
             HStack {
                 Button("Cancel") {
                     PairingManager.shared.invalidateActiveCode()
@@ -80,8 +220,8 @@ public struct MacPairingModalView: View {
                 .disabled(isPairingInProgress || inputPairingCode.trimmingCharacters(in: .whitespaces).count != 6)
             }
         }
-        .padding(24)
-        .frame(width: 440)
+        .padding(20)
+        .frame(width: 480)
         .onAppear {
             generatedCode = PairingManager.shared.generatePairingCode()
         }
@@ -94,6 +234,7 @@ public struct MacPairingModalView: View {
         let code = inputPairingCode.trimmingCharacters(in: .whitespacesAndNewlines)
         guard code.count == 6 && code.allSatisfy({ $0.isNumber }) else {
             errorMessage = "Please enter a valid 6-digit numeric pairing code."
+            MacToastManager.shared.showError(title: "Invalid Code", message: "Pairing code must be 6 digits.")
             return
         }
 
@@ -112,6 +253,7 @@ public struct MacPairingModalView: View {
                 DispatchQueue.main.async {
                     self.isPairingInProgress = false
                     self.errorMessage = error.localizedDescription
+                    MacToastManager.shared.showError(title: "Pairing Failed", message: error.localizedDescription)
                 }
             }
         }
